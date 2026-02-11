@@ -1,0 +1,1 @@
+command: ["uvicorn", "tesla_lease_tracker.backend.app:app", "--workers", "2"]
