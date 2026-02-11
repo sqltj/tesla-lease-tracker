@@ -9,11 +9,15 @@ dependencies = [
     "pydantic-settings>=2.11.0",
     "uvicorn>=0.37.0",
     "databricks-sdk>=0.74.0",
+    "tesla-fleet-api>=1.4.2",
+    "aiohttp>=3.13.3",
+    "numpy>=2.4.2",
+    "statsmodels>=0.14.6",
 ]
 
 [dependency-groups]
 dev = [
-    "ty>=0.0.12",
+    "ty>=0.0.12", "apx==0.2.6",
 ]
 
 [tool.apx.metadata]
@@ -42,6 +46,17 @@ source = "uv-dynamic-versioning"
 [tool.uv-dynamic-versioning]
 vcs = "git"
 fallback-version = "0.0.0"
+
+[tool.uv]
+
+[[tool.uv.index]]
+name = "apx-index"
+url = "https://databricks-solutions.github.io/apx/simple"
+
+[tool.uv.sources]
+
+[tool.uv.sources.apx]
+index = "apx-index"
 
 [tool.hatch.build.hooks.version]
 path = "src/tesla_lease_tracker/_version.py"
