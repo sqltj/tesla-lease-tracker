@@ -36,5 +36,8 @@ node_modules/
 # apx
 .apx/
 
+# worktrees
+.worktrees/
+
 # UI dist folder
 src/tesla_lease_tracker/__dist__/
