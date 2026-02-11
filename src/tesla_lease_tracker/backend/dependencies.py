@@ -4,6 +4,7 @@ from databricks.sdk import WorkspaceClient
 from fastapi import Depends, Header, Request
 
 from .config import AppConfig
+from .data_store import DataStore
 from .runtime import Runtime
 
 
@@ -37,6 +38,13 @@ def get_runtime(request: Request) -> Runtime:
 
 
 RuntimeDep = Annotated[Runtime, Depends(get_runtime)]
+
+
+def get_data_store(runtime: RuntimeDep) -> DataStore:
+    return runtime.data_store
+
+
+DataStoreDep = Annotated[DataStore, Depends(get_data_store)]
 
 
 def get_obo_ws(
