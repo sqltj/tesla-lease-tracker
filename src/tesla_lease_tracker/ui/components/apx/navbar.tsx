@@ -1,19 +1,10 @@
-import { ModeToggle } from "@/components/apx/mode-toggle";
 import Logo from "@/components/apx/logo";
-import { ReactNode } from "react";
 
-interface NavbarProps {
-  leftContent?: ReactNode;
-  rightContent?: ReactNode;
-}
-
-export function Navbar({ leftContent, rightContent }: NavbarProps) {
+export function Navbar() {
   return (
-    <header className="z-50 bg-background/80 backdrop-blur-sm border-b">
-      <div className="h-16 flex items-center justify-between px-4">
-        {leftContent || <Logo />}
-        <div className="flex-1" />
-        {rightContent || <ModeToggle />}
+    <header className="sticky top-0 z-50 bg-surface/60 backdrop-blur-xl border-b border-white/5">
+      <div className="h-14 flex items-center px-4 sm:px-6 max-w-6xl mx-auto">
+        <Logo />
       </div>
     </header>
   );

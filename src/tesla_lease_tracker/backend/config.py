@@ -22,6 +22,16 @@ class AppConfig(BaseSettings):
     )
     app_name: str = Field(default=app_name)
 
+    # Tesla API secrets (stored in Databricks secret scope)
+    tesla_secret_scope: str = Field(default="tesla-lease-tracker")
+    tesla_client_id_key: str = Field(default="tesla-client-id")
+    tesla_client_secret_key: str = Field(default="tesla-client-secret")
+    tesla_refresh_token_key: str = Field(default="tesla-refresh-token")
+    tesla_api_region: str = Field(default="na")
+
+    # Data persistence
+    data_file_path: str = Field(default="data/app_data.json")
+
     @property
     def static_assets_path(self) -> Path:
         return Path(str(resources.files(app_slug))).joinpath("__dist__")

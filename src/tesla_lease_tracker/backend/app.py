@@ -17,6 +17,10 @@ async def lifespan(app: FastAPI):
     config = AppConfig()
     logger.info(f"Starting app with configuration:\n{config}")
 
+    # Ensure data directory exists before Runtime initializes DataStore
+    from pathlib import Path
+    Path(config.data_file_path).parent.mkdir(parents=True, exist_ok=True)
+
     runtime = Runtime(config)
 
     # Store in app.state for access via dependencies
