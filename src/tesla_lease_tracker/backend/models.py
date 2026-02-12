@@ -1,6 +1,8 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field, model_validator
+import re
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .. import __version__
 
@@ -18,6 +20,15 @@ class VersionOut(BaseModel):
 
 class LeaseConfigIn(BaseModel):
     vin: str = Field(min_length=17, max_length=17, description="17-character vehicle identification number")
+
+    @field_validator("vin")
+    @classmethod
+    def validate_vin_chars(cls, v: str) -> str:
+        v = v.upper()
+        if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", v):
+            raise ValueError("VIN must be 17 alphanumeric characters (I, O, Q not allowed)")
+        return v
+
     lease_start_date: date
     lease_end_date: date
     mileage_limit: int = Field(gt=0, description="Total allowed miles over lease term")
