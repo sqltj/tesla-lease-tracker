@@ -28,9 +28,9 @@ export function LeaseDialog({ existingLease, onSaved, trigger }: LeaseDialogProp
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md glass glow-border border-white/8">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="font-display">
             {existingLease ? "Edit Lease Configuration" : "Set Up Your Lease"}
           </DialogTitle>
         </DialogHeader>

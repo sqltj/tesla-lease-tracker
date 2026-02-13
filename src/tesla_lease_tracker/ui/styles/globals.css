@@ -1,77 +1,66 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+/* ── Google Fonts ────────────────────────────── */
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600&display=swap");
 
+/* ── Dark-only: Tesla "Electric Glass" palette ─ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  color-scheme: dark;
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
+  --background: #09090b;
+  --foreground: #f0f0f2;
+
+  --card: #111114;
+  --card-foreground: #f0f0f2;
+
+  --popover: #111114;
+  --popover-foreground: #f0f0f2;
+
+  --primary: #38bdf8;
+  --primary-foreground: #09090b;
+
+  --secondary: #1a1a1f;
+  --secondary-foreground: #f0f0f2;
+
+  --muted: #1a1a1f;
+  --muted-foreground: #71717a;
+
+  --accent: #1a1a1f;
+  --accent-foreground: #f0f0f2;
+
+  --destructive: #f87171;
+  --destructive-foreground: #f87171;
+
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.06);
+  --ring: #38bdf8;
+
+  /* Tesla custom tokens */
+  --surface: #111114;
+  --surface-bright: #1a1a1f;
+  --border-glow: rgba(56, 189, 248, 0.12);
+  --glow-color: rgba(56, 189, 248, 0.15);
+  --good: #4ade80;
+  --warning: #f87171;
+
+  /* Chart palette */
+  --chart-1: #38bdf8;
+  --chart-2: #22d3ee;
+  --chart-3: #4ade80;
+  --chart-4: #a78bfa;
+  --chart-5: #f87171;
+
+  --radius: 0.75rem;
+
+  --sidebar: #111114;
+  --sidebar-foreground: #f0f0f2;
+  --sidebar-primary: #38bdf8;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent: #1a1a1f;
+  --sidebar-accent-foreground: #f0f0f2;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #38bdf8;
 }
 
 @theme inline {
@@ -99,6 +88,10 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-surface: var(--surface);
+  --color-surface-bright: var(--surface-bright);
+  --color-good: var(--good);
+  --color-warning: var(--warning);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -113,11 +106,125 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* ── Animations ──────────────────────────────── */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes gauge-fill {
+  from { stroke-dashoffset: var(--gauge-circumference, 565); }
+  to { stroke-dashoffset: var(--gauge-offset, 0); }
+}
+
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Base layer ──────────────────────────────── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+}
+
+/* ── Utility classes ─────────────────────────── */
+@layer utilities {
+  .font-display {
+    font-family: "Syne", system-ui, sans-serif;
+  }
+
+  .font-mono {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  .font-body {
+    font-family: "Manrope", system-ui, sans-serif;
+  }
+
+  .glass {
+    background: rgba(17, 17, 20, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .glass-bright {
+    background: rgba(26, 26, 31, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glow-border {
+    border: 1px solid rgba(56, 189, 248, 0.12);
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.06);
+  }
+
+  .glow-border-strong {
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    box-shadow: 0 0 30px rgba(56, 189, 248, 0.1), inset 0 0 20px rgba(56, 189, 248, 0.03);
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.5s ease-out both;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  .animate-gauge-fill {
+    animation: gauge-fill 1.2s ease-out both;
+  }
+
+  /* Stagger delays for sequential animations */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+
+  /* Dot grid background pattern */
+  .bg-dot-grid {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
 }

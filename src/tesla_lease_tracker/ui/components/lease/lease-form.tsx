@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +39,13 @@ export function LeaseForm({ existingLease, onSuccess }: LeaseFormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: getLeaseKey() });
       queryClient.invalidateQueries({ queryKey: getDashboardKey() });
+      toast.success("Lease configuration saved");
       onSuccess?.();
+    },
+    onError: (error) => {
+      toast.error(
+        `Failed to save: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     },
   });
 
@@ -110,8 +117,15 @@ export function LeaseForm({ existingLease, onSuccess }: LeaseFormProps) {
         </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={mutation.isPending}>
-        {mutation.isPending ? "Saving..." : "Save Lease Configuration"}
+      <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium" disabled={mutation.isPending}>
+        {mutation.isPending ? (
+          <>
+            <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+            Saving...
+          </>
+        ) : (
+          "Save Lease Configuration"
+        )}
       </Button>
 
       {mutation.isError && (

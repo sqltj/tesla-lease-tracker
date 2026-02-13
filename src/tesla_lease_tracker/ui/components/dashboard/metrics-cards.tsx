@@ -1,8 +1,22 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DashboardOut } from "@/lib/api";
 
 interface MetricsCardsProps {
   dashboard: DashboardOut;
+}
+
+type MetricStatus = "good" | "warning" | "neutral";
+
+interface Metric {
+  label: string;
+  value: string;
+  sub: string;
+  status: MetricStatus;
+}
+
+function statusDotClass(status: MetricStatus): string {
+  if (status === "good") return "bg-good";
+  if (status === "warning") return "bg-warning";
+  return "bg-muted-foreground/40";
 }
 
 export function MetricsCards({ dashboard }: MetricsCardsProps) {
@@ -20,70 +34,57 @@ export function MetricsCards({ dashboard }: MetricsCardsProps) {
   const isOverPace = daily_average > budget_daily_rate;
   const isOverProjected = over_under > 0;
 
+  const metrics: Metric[] = [
+    {
+      label: "Miles Used",
+      value: `${Math.round(lease_miles_used).toLocaleString()}`,
+      sub: `of ${mileage_limit.toLocaleString()} limit`,
+      status: "neutral",
+    },
+    {
+      label: "Daily Average",
+      value: `${daily_average} mi/day`,
+      sub: `budget: ${budget_daily_rate} mi/day`,
+      status: isOverPace ? "warning" : "good",
+    },
+    {
+      label: "Days Remaining",
+      value: `${days_remaining}`,
+      sub: `of ${total_lease_days} total`,
+      status: "neutral",
+    },
+    {
+      label: "Projected End",
+      value: `${isOverProjected ? "+" : ""}${Math.round(over_under).toLocaleString()} mi`,
+      sub: `${Math.round(projected_end_miles).toLocaleString()} mi projected`,
+      status: isOverProjected ? "warning" : "good",
+    },
+  ];
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Lease Miles Used
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {Math.round(lease_miles_used).toLocaleString()}
+    <div className="glass rounded-xl p-4 space-y-0 glow-border">
+      {metrics.map((m, i) => (
+        <div
+          key={m.label}
+          className={`flex items-center justify-between py-3 animate-fade-up ${
+            i < metrics.length - 1 ? "border-b border-white/5" : ""
+          }`}
+          style={{ animationDelay: `${i * 80}ms` }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${statusDotClass(m.status)}`}
+            />
+            <span className="text-sm text-muted-foreground">{m.label}</span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            of {mileage_limit.toLocaleString()} mi limit
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Daily Average
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className={`text-2xl font-bold ${isOverPace ? "text-red-500" : "text-green-500"}`}>
-            {daily_average} mi/day
+          <div className="text-right">
+            <span className="font-mono text-sm font-medium text-foreground">
+              {m.value}
+            </span>
+            <p className="text-xs text-muted-foreground">{m.sub}</p>
           </div>
-          <p className="text-xs text-muted-foreground">
-            budget: {budget_daily_rate} mi/day
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Days Remaining
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{days_remaining}</div>
-          <p className="text-xs text-muted-foreground">
-            of {total_lease_days} total
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Projected End
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className={`text-2xl font-bold ${isOverProjected ? "text-red-500" : "text-green-500"}`}>
-            {isOverProjected ? "+" : ""}
-            {Math.round(over_under).toLocaleString()} mi
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {isOverProjected ? "over" : "under"} limit ({Math.round(projected_end_miles).toLocaleString()} mi projected)
-          </p>
-        </CardContent>
-      </Card>
+        </div>
+      ))}
     </div>
   );
 }

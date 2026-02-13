@@ -18,7 +18,13 @@ export function SyncButton() {
         toast.success("Mileage synced successfully");
       },
       onError: (error) => {
-        toast.error(`Sync failed: ${error.message}`);
+        toast.error(`Sync failed: ${error.message}`, {
+          action: {
+            label: "Retry",
+            onClick: () => mutation.mutate(),
+          },
+          duration: 10000,
+        });
       },
     },
   });
@@ -39,14 +45,15 @@ export function SyncButton() {
       size="sm"
       onClick={handleSync}
       disabled={mutation.isPending}
+      className="glass border-white/10 hover:border-primary/30 hover:shadow-[0_0_15px_rgba(56,189,248,0.1)] transition-all"
     >
       {mutation.isPending ? (
         <>
-          <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          Syncing...
+          <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <span className="font-mono text-xs">Syncing</span>
         </>
       ) : (
-        "Sync Mileage"
+        <span className="text-xs">Sync Mileage</span>
       )}
     </Button>
   );

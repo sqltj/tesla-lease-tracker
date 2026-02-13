@@ -1,6 +1,8 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .. import __version__
 
@@ -17,11 +19,26 @@ class VersionOut(BaseModel):
 
 
 class LeaseConfigIn(BaseModel):
-    vin: str
+    vin: str = Field(min_length=17, max_length=17, description="17-character vehicle identification number")
+
+    @field_validator("vin")
+    @classmethod
+    def validate_vin_chars(cls, v: str) -> str:
+        v = v.upper()
+        if not re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", v):
+            raise ValueError("VIN must be 17 alphanumeric characters (I, O, Q not allowed)")
+        return v
+
     lease_start_date: date
     lease_end_date: date
-    mileage_limit: int = Field(description="Total allowed miles over lease term")
-    start_odometer: float = Field(description="Odometer reading at lease start")
+    mileage_limit: int = Field(gt=0, description="Total allowed miles over lease term")
+    start_odometer: float = Field(ge=0, description="Odometer reading at lease start")
+
+    @model_validator(mode="after")
+    def check_date_ordering(self) -> "LeaseConfigIn":
+        if self.lease_start_date >= self.lease_end_date:
+            raise ValueError("lease_start_date must be before lease_end_date")
+        return self
 
 
 class LeaseConfig(LeaseConfigIn):
@@ -87,6 +104,17 @@ class DashboardOut(BaseModel):
     over_under: float
     last_sync: datetime | None = None
     last_odometer: float | None = None
+
+
+# --- Health ---
+
+
+class HealthOut(BaseModel):
+    status: str = Field(description="Service status: 'ok' or 'degraded'")
+    version: str = Field(description="Application version")
+    has_lease: bool = Field(description="Whether a lease is configured")
+    readings_count: int = Field(description="Number of mileage readings stored")
+    last_sync: datetime | None = Field(default=None, description="Last mileage sync timestamp")
 
 
 # --- AppData (root persistence object) ---
