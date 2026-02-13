@@ -106,6 +106,17 @@ class DashboardOut(BaseModel):
     last_odometer: float | None = None
 
 
+# --- Health ---
+
+
+class HealthOut(BaseModel):
+    status: str = Field(description="Service status: 'ok' or 'degraded'")
+    version: str = Field(description="Application version")
+    has_lease: bool = Field(description="Whether a lease is configured")
+    readings_count: int = Field(description="Number of mileage readings stored")
+    last_sync: datetime | None = Field(default=None, description="Last mileage sync timestamp")
+
+
 # --- AppData (root persistence object) ---
 
 
