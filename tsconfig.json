@@ -30,5 +30,6 @@
         "@/*": ["./src/tesla_lease_tracker/ui/*"]
       }
     },
-    "include": ["src/tesla_lease_tracker/ui", "vite.config.ts", ".apx", "src/tesla_lease_tracker/ui/types/vite-env.d.ts"]
+    "include": ["src/tesla_lease_tracker/ui", "vite.config.ts", ".apx", "src/tesla_lease_tracker/ui/types/vite-env.d.ts"],
+    "exclude": ["src/tesla_lease_tracker/ui/**/__tests__", "src/tesla_lease_tracker/ui/**/*.test.*", "src/tesla_lease_tracker/ui/vitest.config.ts", "src/tesla_lease_tracker/ui/test-setup.ts"]
   }

@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .._metadata import app_name, dist_dir
 from .config import AppConfig
+from .middleware import RequestLoggingMiddleware
 from .router import api
 from .runtime import Runtime
 from .utils import add_not_found_handler
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=f"{app_name}", lifespan=lifespan)
+app.add_middleware(RequestLoggingMiddleware)
 ui = StaticFiles(directory=dist_dir, html=True)
 
 # note the order of includes and mounts!

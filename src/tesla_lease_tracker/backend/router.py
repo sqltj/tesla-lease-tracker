@@ -13,6 +13,7 @@ from .forecast import forecast_linear, forecast_timeseries
 from .models import (
     DashboardOut,
     ForecastOut,
+    HealthOut,
     LeaseConfig,
     LeaseConfigIn,
     LeaseConfigOut,
@@ -28,6 +29,18 @@ api = APIRouter(prefix=api_prefix)
 @api.get("/version", response_model=VersionOut, operation_id="version")
 async def version():
     return VersionOut.from_metadata()
+
+
+@api.get("/health", response_model=HealthOut, operation_id="getHealth")
+async def health(store: DataStoreDep):
+    config = store.data.lease_config
+    return HealthOut(
+        status="ok",
+        version=VersionOut.from_metadata().version,
+        has_lease=config is not None,
+        readings_count=len(store.data.readings),
+        last_sync=store.data.last_sync,
+    )
 
 
 @api.get("/current-user", response_model=UserOut, operation_id="currentUser")
