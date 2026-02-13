@@ -18,7 +18,13 @@ export function SyncButton() {
         toast.success("Mileage synced successfully");
       },
       onError: (error) => {
-        toast.error(`Sync failed: ${error.message}`);
+        toast.error(`Sync failed: ${error.message}`, {
+          action: {
+            label: "Retry",
+            onClick: () => mutation.mutate(),
+          },
+          duration: 10000,
+        });
       },
     },
   });
