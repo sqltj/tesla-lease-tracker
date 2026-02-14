@@ -19,7 +19,7 @@ An individual Tesla lessee who wants to monitor their lease mileage. Single-user
 - Display key metrics: miles used, daily average vs. budget rate, days remaining, projected overage/underage
 - Visualize historical mileage and forecasted trajectory on a time-series chart
 - Provide two forecasting models (linear regression and Holt-Winters exponential smoothing)
-- Persist data across sessions without requiring a database
+- Persist data durably via Lakebase (managed PostgreSQL) with JSON file fallback for environments without database access
 
 ### Non-Goals
 - Multi-user or multi-vehicle support
