@@ -1,4 +1,5 @@
 # Do's and Don'ts
+- **NEVER commit directly to `main`.** Always create a feature branch and open a PR — even for one-line fixes or documentation changes.
 - OpenAPI client auto-regenerates on code changes when dev servers are running - don't manually regenerate.
 - Prefer running apx related commands via MCP server if it's available.
 - Use the apx MCP `search_registry_components` and `add_component` tools to find and add shadcn/ui components.
