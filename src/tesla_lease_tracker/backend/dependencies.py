@@ -1,18 +1,18 @@
+from collections.abc import Generator
 from typing import Annotated
 
 from databricks.sdk import WorkspaceClient
 from fastapi import Depends, Header, Request
+from sqlmodel import Session
 
 from .config import AppConfig
 from .data_store import DataStore
+from .repositories import LeaseRepository, MileageRepository
 from .runtime import Runtime
+from .zerobus_service import ZerobusService
 
 
 def get_config(request: Request) -> AppConfig:
-    """
-    Returns the AppConfig instance from app.state.
-    The config is initialized during application lifespan startup.
-    """
     if not hasattr(request.app.state, "config"):
         raise RuntimeError(
             "AppConfig not initialized. "
@@ -25,10 +25,6 @@ ConfigDep = Annotated[AppConfig, Depends(get_config)]
 
 
 def get_runtime(request: Request) -> Runtime:
-    """
-    Returns the Runtime instance from app.state.
-    The runtime is initialized during application lifespan startup.
-    """
     if not hasattr(request.app.state, "runtime"):
         raise RuntimeError(
             "Runtime not initialized. "
@@ -40,32 +36,58 @@ def get_runtime(request: Request) -> Runtime:
 RuntimeDep = Annotated[Runtime, Depends(get_runtime)]
 
 
-def get_data_store(runtime: RuntimeDep) -> DataStore:
-    return runtime.data_store
+def get_data_store(config: ConfigDep, runtime: RuntimeDep) -> DataStore | None:
+    if config.storage_mode == "json":
+        return runtime.data_store
+    return None
 
 
-DataStoreDep = Annotated[DataStore, Depends(get_data_store)]
+DataStoreDep = Annotated[DataStore | None, Depends(get_data_store)]
+
+
+def get_db_session(
+    config: ConfigDep, runtime: RuntimeDep
+) -> Generator[Session | None, None, None]:
+    if config.storage_mode == "database":
+        with runtime.get_session() as session:
+            yield session
+    else:
+        yield None
+
+
+SessionDep = Annotated[Session | None, Depends(get_db_session)]
+
+
+def get_lease_repo(session: SessionDep) -> LeaseRepository | None:
+    if session is None:
+        return None
+    return LeaseRepository(session)
+
+
+LeaseRepoDep = Annotated[LeaseRepository | None, Depends(get_lease_repo)]
+
+
+def get_mileage_repo(session: SessionDep) -> MileageRepository | None:
+    if session is None:
+        return None
+    return MileageRepository(session)
+
+
+MileageRepoDep = Annotated[MileageRepository | None, Depends(get_mileage_repo)]
+
+
+def get_zerobus_service(request: Request) -> ZerobusService | None:
+    return getattr(request.app.state, "zerobus_service", None)
+
+
+ZerobusServiceDep = Annotated[ZerobusService | None, Depends(get_zerobus_service)]
 
 
 def get_obo_ws(
     token: Annotated[str | None, Header(alias="X-Forwarded-Access-Token")] = None,
 ) -> WorkspaceClient:
-    """
-    Returns a Databricks Workspace client with authentication behalf of user.
-    If the request contains an X-Forwarded-Access-Token header, on behalf of user authentication is used.
-
-    Example usage:
-    @api.get("/items/")
-    async def read_items(obo_ws: Annotated[WorkspaceClient, Depends(get_obo_ws)]):
-        # do something with the obo_ws
-        ...
-    """
-
     if not token:
         raise ValueError(
             "OBO token is not provided in the header X-Forwarded-Access-Token"
         )
-
-    return WorkspaceClient(
-        token=token, auth_type="pat"
-    )  # set pat explicitly to avoid issues with SP client
+    return WorkspaceClient(token=token, auth_type="pat")

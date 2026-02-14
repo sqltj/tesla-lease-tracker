@@ -1,6 +1,6 @@
 from importlib import resources
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from dotenv import load_dotenv
 from pydantic import Field
@@ -16,9 +16,21 @@ if env_file.exists():
     load_dotenv(dotenv_path=env_file)
 
 
+class DatabaseConfig(BaseSettings):
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(extra="ignore")
+    port: int = Field(default=5432, validation_alias="PGPORT")
+    database_name: str = Field(default="databricks_postgres")
+    instance_name: str = Field(
+        default="tesla-lease-tracker", validation_alias="PGAPPNAME"
+    )
+
+
 class AppConfig(BaseSettings):
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
-        env_file=env_file, env_prefix=f"{app_slug.upper()}_", extra="ignore"
+        env_file=env_file,
+        env_prefix=f"{app_slug.upper()}_",
+        extra="ignore",
+        env_nested_delimiter="__",
     )
     app_name: str = Field(default=app_name)
 
@@ -31,6 +43,14 @@ class AppConfig(BaseSettings):
 
     # Data persistence
     data_file_path: str = Field(default="data/app_data.json")
+    storage_mode: Literal["database", "json"] = Field(default="database")
+
+    # Database (Lakebase)
+    db: DatabaseConfig = DatabaseConfig()
+
+    # Zerobus Ingest
+    zerobus_catalog: str = Field(default="main")
+    zerobus_schema: str = Field(default="default")
 
     @property
     def static_assets_path(self) -> Path:

@@ -13,6 +13,9 @@ dependencies = [
     "aiohttp>=3.13.3",
     "numpy>=2.4.2",
     "statsmodels>=0.14.6",
+    "sqlmodel>=0.0.27",
+    "psycopg[binary,pool]>=3.2.0",
+    "databricks-zerobus-ingest-sdk",
 ]
 
 [dependency-groups]
@@ -20,6 +23,7 @@ dev = [
     "ty>=0.0.12",
     "apx==0.2.6",
     "pytest>=9.0.2",
+    "pytest-asyncio>=1.0.0",
 ]
 
 [tool.apx.metadata]

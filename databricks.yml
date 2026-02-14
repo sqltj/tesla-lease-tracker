@@ -15,6 +15,10 @@ resources:
       name: "tesla-lease-tracker"
       description: "tesla-lease-tracker created with apx"
       source_code_path: ./.build
+      resources:
+        - name: "tesla-lease-tracker-db"
+          description: "Lakebase PostgreSQL instance for lease data"
+          type: "databricks-database"
 
 targets:
   dev:
