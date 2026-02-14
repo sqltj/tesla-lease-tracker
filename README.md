@@ -20,7 +20,7 @@ Built with [APX](https://github.com/databricks-solutions/apx) (FastAPI + React) 
 uv sync
 ```
 
-This installs all Python dependencies (FastAPI, Pydantic, statsmodels, etc.) and the APX dev toolkit.
+This installs all Python dependencies (FastAPI, Pydantic, SQLModel, statsmodels, etc.) and the APX dev toolkit.
 
 ### 2. Configure Databricks authentication
 
@@ -63,6 +63,8 @@ uv run apx dev start
 
 This starts the backend (FastAPI), frontend (Vite), and OpenAPI client watcher. Open [http://127.0.0.1:9000](http://127.0.0.1:9000) in your browser.
 
+The dev server automatically provisions a local PGlite database (detected via `APX_DEV_DB_PORT`) — no external database setup needed.
+
 Useful commands during development:
 
 ```bash
@@ -78,13 +80,36 @@ The backend config can be overridden via a `.env` file at the project root or en
 
 | Variable | Default | Description |
 |---|---|---|
+| `TESLA_LEASE_TRACKER_STORAGE_MODE` | `database` | Storage backend: `database` (Lakebase/PGlite) or `json` (flat file) |
 | `TESLA_LEASE_TRACKER_TESLA_SECRET_SCOPE` | `tesla-lease-tracker` | Databricks secret scope name |
 | `TESLA_LEASE_TRACKER_TESLA_API_REGION` | `na` | Tesla Fleet API region (`na`, `eu`, `cn`) |
-| `TESLA_LEASE_TRACKER_DATA_FILE_PATH` | `data/app_data.json` | Path for JSON data persistence |
+| `TESLA_LEASE_TRACKER_DATA_FILE_PATH` | `data/app_data.json` | Path for JSON data persistence (only used when `storage_mode=json`) |
+| `TESLA_LEASE_TRACKER_ZEROBUS_CATALOG` | `main` | Unity Catalog catalog for Zerobus Delta table |
+| `TESLA_LEASE_TRACKER_ZEROBUS_SCHEMA` | `default` | Unity Catalog schema for Zerobus Delta table |
 
 ## Deploy to Databricks
 
-### 1. Build
+### 1. Provision infrastructure
+
+**Create a Lakebase instance** (managed PostgreSQL):
+
+```bash
+databricks database create-database-instance \
+    --name tesla-lease-tracker \
+    --capacity SMALL
+```
+
+**Create the Zerobus Delta table** for mileage analytics:
+
+```sql
+CREATE TABLE IF NOT EXISTS main.default.mileage_readings (
+    vin STRING NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    odometer DOUBLE NOT NULL
+) USING DELTA;
+```
+
+### 2. Build
 
 ```bash
 uv run apx build
@@ -92,17 +117,25 @@ uv run apx build
 
 This compiles the React frontend into static assets and packages everything into a Python wheel.
 
-### 2. Deploy
+### 3. Deploy
 
 ```bash
 databricks bundle deploy -p <your-profile>
 ```
 
-This uploads the built artifacts and creates (or updates) the Databricks App resource defined in `databricks.yml`.
+This uploads the built artifacts and creates (or updates) the Databricks App resource defined in `databricks.yml`, including the Lakebase database resource.
 
 The deployed app runs via:
 ```
 uvicorn tesla_lease_tracker.backend.app:app --workers 2
+```
+
+### Migrating existing JSON data
+
+If you have an existing JSON data file and are switching to database storage:
+
+```bash
+uv run python scripts/migrate_json_to_lakebase.py --json-path data/app_data.json
 ```
 
 ### Updating after changes
@@ -116,16 +149,19 @@ uv run apx build && databricks bundle deploy -p <your-profile>
 ```
 src/tesla_lease_tracker/
 ├── backend/
-│   ├── app.py               # FastAPI entrypoint
+│   ├── app.py               # FastAPI entrypoint + lifespan (DB/Zerobus init)
 │   ├── router.py             # API routes (/api/lease, /api/mileage, /api/dashboard, /api/forecast)
-│   ├── models.py             # Pydantic data models
-│   ├── data_store.py         # JSON file persistence
+│   ├── models.py             # Pydantic API models (request/response contracts)
+│   ├── db_models.py          # SQLModel table definitions (LeaseConfigDB, MileageReadingDB, AppStateDB)
+│   ├── repositories.py       # Repository layer (LeaseRepository, MileageRepository)
+│   ├── data_store.py         # JSON file persistence (fallback)
 │   ├── tesla_service.py      # Tesla Fleet API client + OAuth
+│   ├── zerobus_service.py    # Zerobus Ingest SDK wrapper (Delta table streaming)
 │   ├── forecast.py           # Linear regression + Holt-Winters forecasting
-│   ├── config.py             # App settings (env vars + Databricks secrets)
-│   ├── dependencies.py       # FastAPI dependency injection
-│   ├── runtime.py            # Runtime initialization (WorkspaceClient, DataStore)
-│   └── logger.py             # Logging configuration
+│   ├── config.py             # App settings (DatabaseConfig, Zerobus config, storage_mode)
+│   ├── dependencies.py       # FastAPI dependency injection (repos, sessions, config)
+│   ├── runtime.py            # Runtime initialization (SQLAlchemy engine, WorkspaceClient)
+│   └── logger.py             # Structured JSON logging
 └── ui/
     ├── routes/index.tsx       # Dashboard page route
     └── components/
@@ -133,15 +169,73 @@ src/tesla_lease_tracker/
         └── lease/             # Lease configuration dialog
 ```
 
+## Storage Architecture
+
+The app uses a **dual-storage architecture** with a JSON file fallback:
+
+### Database mode (default)
+
+**Lakebase Provisioned** (managed PostgreSQL) stores transactional data with ACID guarantees:
+
+| Table | Contents |
+|---|---|
+| `lease_config` | VIN, lease dates, mileage limit, start odometer, timestamps |
+| `mileage_readings` | Timestamped odometer readings per VIN |
+| `app_state` | Last sync timestamp |
+
+**Zerobus Ingest** additionally streams each mileage reading to a Delta table (`{catalog}.{schema}.mileage_readings`) for analytics workloads. This is non-fatal — if Zerobus is unavailable, data is still written to Lakebase.
+
+In local development, `apx dev start` automatically provisions a PGlite instance (embedded PostgreSQL) — no external database setup required.
+
+### JSON mode (fallback)
+
+Set `TESLA_LEASE_TRACKER_STORAGE_MODE=json` to use flat-file persistence. All state is stored in a single JSON file (`data/app_data.json` by default):
+
+```json
+{
+  "lease_config": {
+    "vin": "5YJ3E1EA1PF...",
+    "lease_start_date": "2024-01-15",
+    "lease_end_date": "2027-01-15",
+    "mileage_limit": 36000,
+    "start_odometer": 12.0,
+    "created_at": "...",
+    "updated_at": "..."
+  },
+  "readings": [
+    { "timestamp": "2024-02-01T12:00:00", "odometer": 1024.5 },
+    { "timestamp": "2024-03-01T12:00:00", "odometer": 2150.3 }
+  ],
+  "last_sync": "2024-03-01T12:00:00"
+}
+```
+
+### What's stored
+
+- **Lease config** — User-provided lease terms (VIN, dates, mileage limit, starting odometer). Entered once via the lease setup form and updatable at any time.
+- **Mileage readings** — Appended on each sync from the Tesla Fleet API. Each reading is a timestamped odometer value.
+- **Last sync** — Timestamp of the most recent Tesla API sync.
+
+Dashboard metrics (daily average, projected end miles, over/under budget) and forecasts (linear regression, Holt-Winters) are **computed on the fly** from the stored data — nothing else is persisted.
+
+## Testing
+
+```bash
+uv run pytest tests/backend/ -v    # 54 backend tests (models, repos, forecast, middleware, Zerobus)
+uv run apx bun run test            # 13 frontend tests (vitest)
+uv run apx dev check               # TypeScript + Python type checks
+```
+
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Backend | Python, FastAPI, Pydantic |
+| Database | Lakebase Provisioned (managed PostgreSQL) via SQLModel |
+| Streaming | Zerobus Ingest (Delta table) |
 | Frontend | React 19, TypeScript, Vite |
 | Routing | TanStack Router |
 | Data Fetching | TanStack React Query |
 | Charts | Recharts |
 | UI Components | shadcn/ui, Tailwind CSS |
-| Persistence | JSON file (no database) |
 | Deployment | Databricks Apps |
