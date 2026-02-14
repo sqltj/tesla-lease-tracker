@@ -41,6 +41,14 @@ export interface HTTPValidationError {
   detail?: ValidationError[];
 }
 
+export interface HealthOut {
+  has_lease: boolean;
+  last_sync?: string | null;
+  readings_count: number;
+  status: string;
+  version: string;
+}
+
 export interface LeaseConfigIn {
   lease_end_date: string;
   lease_start_date: string;
@@ -196,6 +204,29 @@ export function useGetForecast<TData = { data: ForecastOut }>(options?: { params
 
 export function useGetForecastSuspense<TData = { data: ForecastOut }>(options?: { params?: GetForecastParams; query?: Omit<UseSuspenseQueryOptions<{ data: ForecastOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
   return useSuspenseQuery({ queryKey: getForecastKey(options?.params), queryFn: () => getForecast(options?.params), ...options?.query });
+}
+
+export const getHealth = async (options?: RequestInit): Promise<{ data: HealthOut }> => {
+  const res = await fetch("/api/health", { ...options, method: "GET" });
+  if (!res.ok) {
+    const body = await res.text();
+    let parsed: unknown;
+    try { parsed = JSON.parse(body); } catch { parsed = body; }
+    throw new ApiError(res.status, res.statusText, parsed);
+  }
+  return { data: await res.json() };
+};
+
+export const getHealthKey = () => {
+  return ["/api/health"] as const;
+};
+
+export function useGetHealth<TData = { data: HealthOut }>(options?: { query?: Omit<UseQueryOptions<{ data: HealthOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useQuery({ queryKey: getHealthKey(), queryFn: () => getHealth(), ...options?.query });
+}
+
+export function useGetHealthSuspense<TData = { data: HealthOut }>(options?: { query?: Omit<UseSuspenseQueryOptions<{ data: HealthOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useSuspenseQuery({ queryKey: getHealthKey(), queryFn: () => getHealth(), ...options?.query });
 }
 
 export const getLease = async (options?: RequestInit): Promise<{ data: LeaseConfigOut | null }> => {
