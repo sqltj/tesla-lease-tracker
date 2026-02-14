@@ -22,7 +22,16 @@ Full-stack app: `src/tesla-lease-tracker/ui/` (React + Vite) and `src/tesla-leas
 
 ## Models & API
 - **3-model pattern:** `Entity` (DB), `EntityIn` (input), `EntityOut` (output)
+- **Separate DB models:** SQLModel tables in `db_models.py` are distinct from Pydantic API models in `models.py` — API contracts stay frozen while DB schema can evolve
 - **API routes must have:** `response_model` and `operation_id` for client generation
+
+## Storage Architecture
+- **Dual-mode:** `storage_mode` in config controls `database` (Lakebase/PGlite) vs `json` (flat file fallback)
+- **Repository pattern:** `LeaseRepository` and `MileageRepository` encapsulate all DB access — router never touches SQLModel directly
+- **Dependencies are mode-aware:** `SessionDep`, `LeaseRepoDep`, `MileageRepoDep` return `None` in JSON mode to avoid creating DB engines. Router uses `assert` for type narrowing after checking `config.storage_mode`.
+- **Zerobus is non-fatal:** If streaming to Delta fails, log and continue — Lakebase is the source of truth
+- **APX stateful template:** Runtime DB code follows `.venv/.../stateful/src/base/backend/runtime.py` exactly (engine_url, _before_connect, validate_db, initialize_models)
+- **PGlite in dev:** `apx dev start` sets `APX_DEV_DB_PORT` automatically — no manual DB setup needed for local development
 
 ## Frontend Rules
 - **Routing:** `@tanstack/react-router` (routes in `src/tesla-lease-tracker/ui/routes/`)

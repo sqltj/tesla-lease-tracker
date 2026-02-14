@@ -158,10 +158,14 @@ Both models require a minimum of 3 readings.
 
 ### Backend
 - **Framework**: FastAPI (Python 3.11+)
-- **Persistence**: JSON file (`data/app_data.json`) — no database
+- **Persistence (default)**: Lakebase Provisioned (managed PostgreSQL) via SQLModel ORM — ACID transactions for lease config and mileage readings
+- **Persistence (fallback)**: JSON file (`data/app_data.json`) — activated by setting `storage_mode=json`
+- **Streaming**: Zerobus Ingest streams each mileage reading to a Delta table for analytics (non-fatal — failures are logged, not raised)
+- **Repository layer**: `LeaseRepository` and `MileageRepository` encapsulate all database access, converting between SQLModel rows and Pydantic API models
 - **Tesla Integration**: Direct Tesla Fleet API calls via aiohttp, OAuth refresh token flow, token caching, exponential backoff on 429s
 - **Secret Management**: Databricks secret scopes (not environment variables)
 - **Auth**: Databricks workspace identity via WorkspaceClient (service principal in prod, CLI profile in dev)
+- **DB in dev**: PGlite (embedded PostgreSQL) auto-provisioned by `apx dev start` — no external database setup
 
 ### Frontend
 - **Framework**: React 19 + TypeScript + Vite
@@ -175,6 +179,7 @@ Both models require a minimum of 3 readings.
 - Databricks Apps via `databricks bundle deploy`
 - Runs as `uvicorn` with 2 workers
 - Backend serves static frontend assets at `/`, API at `/api`
+- Lakebase database instance declared as app resource in `databricks.yml`
 
 ## 8. Constraints and Assumptions
 
@@ -183,21 +188,34 @@ Both models require a minimum of 3 readings.
 - **Refresh token rotation**: Tesla refresh tokens expire after 90 days. The user must manually update the Databricks secret when this happens. The app surfaces the error clearly.
 - **Minimum readings for forecast**: 3 odometer readings required before forecast features activate.
 - **No offline mode**: Requires network access to both the Databricks workspace (for secrets) and Tesla Fleet API (for odometer).
-- **JSON persistence**: Data is stored in a single JSON file. Suitable for single-user, low-volume data. Not designed for concurrent writes.
+- **Database in production**: Lakebase Provisioned (managed PostgreSQL) provides ACID guarantees. JSON fallback available for environments without database access.
+- **Zerobus availability**: Zerobus Ingest is optional — if the SDK fails to initialize or a streaming call fails, the app continues to function with Lakebase as the sole store.
 
-## 9. Future Considerations
+## 9. Completed Milestones
 
-### P1 — Pre-merge
+### P1 — Pre-merge ✅
 - Error boundaries around all API-driven components
 - Input validation (VIN format, date ordering, positive numbers)
 - `.env.example` documenting required secrets
 
-### P2 — Quality
+### P2 — Quality ✅
 - Backend unit tests (forecast edge cases, model serialization, persistence round-trip)
 - Frontend component tests
 - Success toasts on lease save, retry UI on sync failure
 
-### P3 — Production polish
+### P3 — Production polish ✅
 - Structured request logging with correlation IDs
 - `/api/health` endpoint for deployment monitoring
+
+### P4 — Storage migration ✅
+- Dual-storage architecture: Lakebase (PostgreSQL) + Zerobus Ingest (Delta table)
+- Repository pattern (`LeaseRepository`, `MileageRepository`) replacing direct DataStore access
+- JSON fallback preserved via `storage_mode` config
+- Migration script for existing JSON data (`scripts/migrate_json_to_lakebase.py`)
+- 54 backend tests + 13 frontend tests = 67 total
+
+## 10. Future Considerations
+
 - Rate limit visibility (show remaining Tesla API quota)
+- Multi-vehicle support (schema already supports per-VIN readings)
+- Scheduled sync via Databricks Jobs (opt-in, with vehicle wake warnings)
