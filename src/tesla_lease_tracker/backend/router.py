@@ -16,6 +16,7 @@ from .dependencies import (
     get_obo_ws,
 )
 from .forecast import forecast_linear, forecast_timeseries
+from .logger import logger
 from .models import (
     DashboardOut,
     ForecastOut,
@@ -175,7 +176,13 @@ async def sync_mileage(
         service = TeslaService(runtime)
         odometer = await service.fetch_odometer(lease.vin)
     except TeslaServiceError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        error_msg = str(e)
+        logger.error(f"Tesla sync error: {error_msg}")
+        raise HTTPException(status_code=502, detail=error_msg)
+    except Exception as e:
+        error_msg = f"Unexpected error during sync: {type(e).__name__}: {str(e)}"
+        logger.error(error_msg)
+        raise HTTPException(status_code=502, detail=error_msg)
 
     now = datetime.utcnow()
 

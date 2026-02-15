@@ -70,27 +70,38 @@ class TeslaService:
 
         max_retries = 3
         for attempt in range(max_retries + 1):
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{base_url}/api/1/vehicles/{vin}/vehicle_data",
-                    params={"endpoints": "vehicle_state"},
-                    headers={"Authorization": f"Bearer {token}"},
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        odometer = data["response"]["vehicle_state"]["odometer"]
-                        logger.info(f"Fetched odometer for {vin}: {odometer}")
-                        return float(odometer)
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                        f"{base_url}/api/1/vehicles/{vin}/vehicle_data",
+                        params={"endpoints": "vehicle_state"},
+                        headers={"Authorization": f"Bearer {token}"},
+                    ) as resp:
+                        if resp.status == 200:
+                            try:
+                                data = await resp.json()
+                                odometer = data["response"]["vehicle_state"]["odometer"]
+                                logger.info(f"Fetched odometer for {vin}: {odometer}")
+                                return float(odometer)
+                            except (KeyError, TypeError, ValueError) as e:
+                                body = await resp.text()
+                                raise TeslaServiceError(
+                                    f"Failed to parse Tesla API response: {str(e)}. Response: {body}"
+                                )
 
-                    if resp.status == 429 and attempt < max_retries:
-                        wait = 2 ** attempt
-                        logger.warning(f"Rate limited (429), retrying in {wait}s...")
-                        await asyncio.sleep(wait)
-                        continue
+                        if resp.status == 429 and attempt < max_retries:
+                            wait = 2 ** attempt
+                            logger.warning(f"Rate limited (429), retrying in {wait}s...")
+                            await asyncio.sleep(wait)
+                            continue
 
-                    body = await resp.text()
-                    raise TeslaServiceError(
-                        f"Tesla API error ({resp.status}): {body}"
-                    )
+                        body = await resp.text()
+                        raise TeslaServiceError(
+                            f"Tesla API error ({resp.status}): {body}"
+                        )
+            except TeslaServiceError:
+                raise
+            except Exception as e:
+                raise TeslaServiceError(f"Unexpected error calling Tesla API: {str(e)}")
 
         raise TeslaServiceError("Max retries exceeded for Tesla API")

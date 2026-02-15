@@ -347,6 +347,13 @@ uv run apx dev check               # TypeScript + Python type checks
 **Problem**: "vehicle_device_data" scope errors
 - **Solution**: Make sure you've enabled the `vehicle_device_data` scope in your Tesla developer app — it's required for Fleet API access to odometer readings.
 
+**Problem**: "Account must be registered in the current region" (412 error during sync)
+- **Solution**: Your OAuth client ID must be registered with Tesla's Fleet API in the region you're trying to access.
+  - Go to [Tesla Developer Console](https://developer.tesla.com)
+  - Register your OAuth application in the appropriate region (the app uses `na` by default for North America)
+  - Alternatively, change the region in `.env` or set `TESLA_LEASE_TRACKER_TESLA_API_REGION` environment variable to match where your account is registered (`eu`, `cn`, etc.)
+  - Verify you're using the correct VIN for a vehicle associated with your Tesla account
+
 ### Local Development
 
 **Empty dashboard?**
