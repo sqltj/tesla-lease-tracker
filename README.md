@@ -39,13 +39,44 @@ Perfect for trying out the dashboard without Tesla API credentials:
 
    This starts the backend (FastAPI), frontend (Vite), and OpenAPI watcher. The dev server automatically provisions a local PGlite database — no external database setup needed.
 
-4. **Explore the UI**
+4. **Seed sample data (optional)**
+
+   ```bash
+   uv run python scripts/seed_local.py
+   ```
+
+   This populates the database with realistic sample data: a 3-year Tesla Model Y lease with 19 mileage readings spanning 18 months. You'll see the dashboard at ~50% mileage usage (18,000 of 36,000 miles used).
+
+   To reset and re-seed:
+   ```bash
+   uv run python scripts/seed_local.py --force
+   ```
+
+5. **Explore the UI**
 
    Open [http://127.0.0.1:9000](http://127.0.0.1:9000)
 
-   You'll see the empty dashboard. Use the lease configuration dialog to set up a sample lease, then explore the UI components. Without Tesla API credentials, you can test the frontend but won't be able to sync real mileage data.
+   If you seeded data, you'll see a fully populated dashboard with the hero gauge, metrics, and chart. If you didn't seed, use the lease configuration dialog to manually set up a sample lease, then explore the UI components. Without Tesla API credentials, you can test the frontend but won't be able to sync real mileage data.
 
 #### Detailed Walkthrough
+
+**Option A: With Sample Data (Recommended)**
+
+1. **Seed the database**
+   ```bash
+   uv run python scripts/seed_local.py
+   ```
+   This inserts a 3-year Tesla Model Y lease (36k mile limit) with 19 historical readings.
+
+2. **Open the dashboard** — http://127.0.0.1:9000
+
+   You'll see:
+   - Hero gauge at **50% usage** (~18,000 of 36,000 miles used)
+   - Metrics cards populated (Daily Average: ~29 mi/day, Budget Rate: ~32.8 mi/day, etc.)
+   - Chart displaying 19 data points with trend line
+   - Working forecast toggle (Linear and Time Series models)
+
+**Option B: Manual Configuration**
 
 Once the dev server is running and you open http://127.0.0.1:9000:
 
