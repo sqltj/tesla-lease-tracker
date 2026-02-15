@@ -126,14 +126,43 @@ For syncing real odometer readings from your Tesla:
 
 2. **Register with Tesla Fleet API** (one-time setup)
 
-   This app requires Tesla Fleet API access. You must complete the registration process:
-   - Go to [Tesla Developer Console](https://developer.tesla.com)
-   - Create an application and request access
-   - **Important**: Call the **Register Endpoint** in your desired region (NA, EU, or CN)
-     - See [Tesla Fleet API Registration Docs](https://developer.tesla.com/docs/fleet-api/endpoints/partner-endpoints#register)
-     - You'll need a public/private key pair (see Fleet API docs for generation instructions)
-     - This registration must be completed before syncing will work
-   - Note: Registration can take a few hours for approval
+   This app requires Tesla Fleet API access. Follow these steps:
+
+   **Step A: Generate Key Pair**
+   ```bash
+   # Generate private key
+   openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem
+
+   # Extract public key
+   openssl ec -in private-key.pem -pubout -out public-key.pem
+   ```
+
+   **Step B: Host Public Key**
+   - Host `public-key.pem` at: `https://your-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem`
+   - Tesla will verify this URL to confirm domain ownership
+
+   **Step C: Get Partner Token**
+   ```bash
+   CLIENT_ID="your-client-id"
+   CLIENT_SECRET="your-client-secret"
+   AUDIENCE="https://fleet-api.prd.na.vn.cloud.tesla.com"  # or .eu. or .cn.
+
+   curl --request POST \
+     --header 'Content-Type: application/x-www-form-urlencoded' \
+     --data-urlencode 'grant_type=client_credentials' \
+     --data-urlencode "client_id=$CLIENT_ID" \
+     --data-urlencode "client_secret=$CLIENT_SECRET" \
+     --data-urlencode 'scope=openid vehicle_device_data' \
+     --data-urlencode "audience=$AUDIENCE" \
+     'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'
+   ```
+   Save the `access_token` from the response.
+
+   **Step D: Call Register Endpoint**
+   - Go to [Tesla Fleet API Docs](https://developer.tesla.com/docs/fleet-api/endpoints/partner-endpoints#register)
+   - Use the partner token and your public key to call the register endpoint
+   - Choose your region (na, eu, or cn)
+   - Note: Registration approval can take a few hours
 
 3. **Get Tesla OAuth credentials** from [developer.tesla.com](https://developer.tesla.com)
 
