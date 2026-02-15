@@ -74,7 +74,7 @@
 # MAGIC │   ├── seed_local.py                # Sample data for local dev
 # MAGIC │   └── post_deploy_setup.py         # Post-deployment automation (planned)
 # MAGIC │
-# MAGIC ├── databricks/notebooks/
+# MAGIC ├── databricks/notebooks/            # Deployed to /Users/{email}/tesla-lease-tracker/notebooks
 # MAGIC │   ├── setup/
 # MAGIC │   │   ├── 1_create_lakebase.py    # Provision database
 # MAGIC │   │   └── 2_create_delta_table.sql # Create analytics table
@@ -88,6 +88,12 @@
 # MAGIC ├── pyproject.toml                   # Python dependencies
 # MAGIC └── README.md                        # Full documentation
 # MAGIC ```
+# MAGIC
+# MAGIC **Note on Workspace Deployment:**
+# MAGIC When deployed to Databricks, notebooks are organized under your user workspace at:
+# MAGIC - `/Users/{your_email}/tesla-lease-tracker/notebooks/README.py`
+# MAGIC - `/Users/{your_email}/tesla-lease-tracker/notebooks/setup/1_create_lakebase.py`
+# MAGIC - `/Users/{your_email}/tesla-lease-tracker/notebooks/setup/2_create_delta_table.sql`
 
 # COMMAND ----------
 

@@ -90,12 +90,12 @@ resources:
       tasks:
         - task_key: create_lakebase
           notebook_task:
-            notebook_path: /tesla-lease-tracker/setup/1_create_lakebase
+            notebook_path: /Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/setup/1_create_lakebase
           existing_cluster_id: <cluster-id>
 
         - task_key: create_delta_table
           notebook_task:
-            notebook_path: /tesla-lease-tracker/setup/2_create_delta_table
+            notebook_path: /Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/setup/2_create_delta_table
           depends_on:
             - task_key: create_lakebase
           existing_cluster_id: <cluster-id>
