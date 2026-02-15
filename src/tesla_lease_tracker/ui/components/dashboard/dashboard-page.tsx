@@ -89,6 +89,11 @@ function DashboardWithData() {
           readings={readings}
           forecast={forecastData ?? null}
           mileageLimit={lease.mileage_limit}
+          leaseEndDate={
+            typeof lease.lease_end_date === "string"
+              ? lease.lease_end_date
+              : new Date(lease.lease_end_date).toISOString().slice(0, 10)
+          }
         />
         <aside className="space-y-4">
           {dashboard && <MetricsCards dashboard={dashboard} />}
