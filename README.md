@@ -141,28 +141,44 @@ For syncing real odometer readings from your Tesla:
    - Host `public-key.pem` at: `https://your-domain.com/.well-known/appspecific/com.tesla.3p.public-key.pem`
    - Tesla will verify this URL to confirm domain ownership
 
-   **Step C: Get Partner Token**
+   **Step C: Deploy App & Get a Domain**
+
+   The app must have a **publicly accessible URL** (domain) for Tesla to verify your public key location.
+
+   **For Databricks deployment:**
    ```bash
-   CLIENT_ID="your-client-id"
-   CLIENT_SECRET="your-client-secret"
-   AUDIENCE="https://fleet-api.prd.na.vn.cloud.tesla.com"  # or .eu. or .cn.
-
-   curl --request POST \
-     --header 'Content-Type: application/x-www-form-urlencoded' \
-     --data-urlencode 'grant_type=client_credentials' \
-     --data-urlencode "client_id=$CLIENT_ID" \
-     --data-urlencode "client_secret=$CLIENT_SECRET" \
-     --data-urlencode 'scope=openid vehicle_device_data' \
-     --data-urlencode "audience=$AUDIENCE" \
-     'https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token'
+   uv run apx build
+   databricks bundle deploy -p <your-profile>
    ```
-   Save the `access_token` from the response.
+   This gives you a URL like: `https://dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker`
 
-   **Step D: Call Register Endpoint**
-   - Go to [Tesla Fleet API Docs](https://developer.tesla.com/docs/fleet-api/endpoints/partner-endpoints#register)
-   - Use the partner token and your public key to call the register endpoint
-   - Choose your region (na, eu, or cn)
-   - Note: Registration approval can take a few hours
+   **For your own server/domain:** Use your domain URL (e.g., `tesla-lease-tracker.example.com`)
+
+   **Step D: Register with Tesla**
+
+   Use the automated registration script:
+   ```bash
+   uv run python scripts/register_fleet_api.py \
+     --domain your-deployed-domain.com \
+     --region na  # or 'eu', 'cn'
+   ```
+
+   The script will:
+   - Automatically get your partner token from Databricks secrets
+   - Load your public key from `public-key.pem`
+   - Call Tesla's register endpoint
+   - Show you the status
+
+   **Alternatively, manually register** (if not using Databricks):
+   ```bash
+   uv run python scripts/register_fleet_api.py \
+     --domain your-domain.com \
+     --region na \
+     --client-id YOUR_CLIENT_ID \
+     --client-secret YOUR_CLIENT_SECRET
+   ```
+
+   Note: Registration approval can take 1-24 hours. You'll receive a confirmation email.
 
 3. **Get Tesla OAuth credentials** from [developer.tesla.com](https://developer.tesla.com)
 
