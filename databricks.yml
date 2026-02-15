@@ -5,6 +5,17 @@ sync:
   include:
     - .build
 
+variables:
+  region:
+    description: "AWS region for deployment"
+    default: "us-west-2"
+  environment:
+    description: "Deployment environment"
+    default: "dev"
+  alert_email:
+    description: "Email for anomaly alerts"
+    default: "admin@example.com"
+
 artifacts:
   default:
     build: uv run apx build
@@ -52,3 +63,45 @@ targets:
   dev:
     mode: development
     default: true
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
+    variables:
+      region: "us-west-2"
+      environment: "dev"
+      alert_email: "dev-team@example.com"
+
+  staging:
+    mode: development
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
+    variables:
+      region: "us-west-2"
+      environment: "staging"
+      alert_email: "staging-alerts@example.com"
+
+  prod-na:
+    mode: production
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
+    variables:
+      region: "us-west-2"
+      environment: "prod-na"
+      alert_email: "prod-alerts@example.com"
+
+  prod-eu:
+    mode: production
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
+    variables:
+      region: "eu-west-1"
+      environment: "prod-eu"
+      alert_email: "prod-eu-alerts@example.com"
+
+  prod-cn:
+    mode: production
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
+    variables:
+      region: "cn-north-1"
+      environment: "prod-cn"
+      alert_email: "prod-cn-alerts@example.com"
