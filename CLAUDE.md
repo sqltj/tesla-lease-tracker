@@ -1,5 +1,13 @@
 # Do's and Don'ts
 - **NEVER commit directly to `main`.** Always create a feature branch and open a PR — even for one-line fixes or documentation changes.
+- **Check for merge conflicts before creating PRs** — especially for multi-file changes like DEPLOYMENT_ROADMAP.md, databricks.yml, or other shared files:
+  ```bash
+  # Test merge into main to catch conflicts early
+  git diff --name-only main <your-branch>  # See what files changed
+  git merge --no-commit --no-ff main       # Test merge (doesn't commit)
+  git merge --abort                         # Abort if there are conflicts
+  ```
+  Fix conflicts locally before pushing/creating PR to avoid PR review delays.
 - OpenAPI client auto-regenerates on code changes when dev servers are running - don't manually regenerate.
 - Prefer running apx related commands via MCP server if it's available.
 - Use the apx MCP `search_registry_components` and `add_component` tools to find and add shadcn/ui components.
