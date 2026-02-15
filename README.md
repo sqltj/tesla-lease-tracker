@@ -249,25 +249,52 @@ Set in `databricks.yml` or workspace environment:
 
 ## Deploy to Databricks
 
-### 1. Provision infrastructure
+### Pre-Deployment Checklist
 
-**Create a Lakebase instance** (managed PostgreSQL):
+Before deploying, ensure you have:
+- [ ] Configured Databricks CLI: `databricks auth login --host <workspace-url>`
+- [ ] Created Tesla OAuth credentials at [developer.tesla.com](https://developer.tesla.com)
+- [ ] Added Tesla credentials to Databricks secrets:
+  ```bash
+  databricks secrets create-scope tesla-lease-tracker
+  databricks secrets put-secret tesla-lease-tracker tesla-client-id --string-value "YOUR_CLIENT_ID"
+  databricks secrets put-secret tesla-lease-tracker tesla-client-secret --string-value "YOUR_CLIENT_SECRET"
+  ```
+- [ ] (Optional) Obtained Tesla refresh token:
+  ```bash
+  uv run python scripts/get_tesla_refresh_token_auto.py \
+    --client-id YOUR_CLIENT_ID \
+    --client-secret YOUR_CLIENT_SECRET
+  ```
+  Then store it in Databricks secrets.
+
+### Deployment Steps
+
+### 1. Provision Infrastructure
+
+**Create a Lakebase instance** (managed PostgreSQL for transactional data):
 
 ```bash
 databricks database create-database-instance \
     --name tesla-lease-tracker \
-    --capacity SMALL
+    --capacity SMALL \
+    --profile <your-profile>
 ```
 
-**Create the Zerobus Delta table** for mileage analytics:
+Wait for creation to complete (~5-10 minutes).
 
-```sql
-CREATE TABLE IF NOT EXISTS main.default.mileage_readings (
+**Create the Zerobus Delta table** (for analytics streaming):
+
+```bash
+databricks sql execute "CREATE TABLE IF NOT EXISTS main.default.mileage_readings (
     vin STRING NOT NULL,
     timestamp TIMESTAMP NOT NULL,
     odometer DOUBLE NOT NULL
-) USING DELTA;
+) USING DELTA;" \
+    --profile <your-profile>
 ```
+
+Or use the Databricks SQL editor to run the query manually.
 
 ### 2. Build
 
@@ -289,6 +316,53 @@ The deployed app runs via:
 ```
 uvicorn tesla_lease_tracker.backend.app:app --workers 2
 ```
+
+### 4. Post-Deployment Setup
+
+After deployment completes, run these steps to enable Tesla sync:
+
+**Step A: Get your deployed URL**
+```bash
+databricks app get tesla-lease-tracker --profile <your-profile>
+# Look for the "url" field in the output
+# Example: https://dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker
+```
+
+**Step B: Complete Tesla Fleet API Registration** (one-time setup)
+
+Register your deployed domain with Tesla's Fleet API:
+```bash
+# Generate key pair first (if not already done)
+openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem
+openssl ec -in private-key.pem -pubout -out public-key.pem
+
+# Register with Tesla (uses secrets from Databricks)
+uv run python scripts/register_fleet_api.py \
+  --domain dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker \
+  --region na
+```
+
+The script will:
+- Retrieve your Tesla OAuth credentials from Databricks secrets
+- Get a partner authentication token
+- Register your domain with Tesla's Fleet API
+- Show you the status
+
+**Step C: (Optional) Seed sample data**
+
+To test the app with realistic sample lease data before syncing real Tesla data:
+```bash
+# This requires local dev tools, so you'd run this locally and then have
+# data available when deployed (if using same database)
+# Or use the UI to manually add a lease and readings
+```
+
+**Step D: Verify setup**
+
+- Open your deployed URL: `https://dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker`
+- Configure a lease in the UI
+- Wait for Tesla Fleet API registration approval (1-24 hours, you'll get an email)
+- Once approved, the "Sync Mileage" button will work
 
 ### Migrating existing JSON data
 
