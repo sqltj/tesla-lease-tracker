@@ -4,88 +4,171 @@ Track your Tesla's odometer against your lease mileage allowance. Syncs real rea
 
 Built with [APX](https://github.com/databricks-solutions/apx) (FastAPI + React) and deployed as a Databricks App.
 
-## Prerequisites
+## Getting Started
+
+### Prerequisites
 
 - **Python 3.11+**
 - **[uv](https://docs.astral.sh/uv/)** — Python package manager
 - **[Databricks CLI](https://docs.databricks.com/en/dev-tools/cli/install.html)** — for deployment and secret management
 - A **Databricks workspace** with a configured CLI profile
-- A **Tesla Developer account** with OAuth credentials ([developer.tesla.com](https://developer.tesla.com))
 
-## Local Development
+### Quick Start (exploring the UI locally)
 
-### 1. Install dependencies
+Perfect for trying out the dashboard without Tesla API credentials:
 
-```bash
-uv sync
-```
+1. **Install dependencies**
+   ```bash
+   uv sync
+   ```
 
-This installs all Python dependencies (FastAPI, Pydantic, SQLModel, statsmodels, etc.) and the APX dev toolkit.
+2. **Configure Databricks CLI**
+   ```bash
+   databricks configure --profile <your-profile>
+   ```
 
-### 2. Configure Databricks authentication
+   Optionally export the profile so the SDK picks it up:
+   ```bash
+   export DATABRICKS_CONFIG_PROFILE=<your-profile>
+   ```
 
-The app uses the Databricks SDK to fetch Tesla secrets at runtime. Set up a CLI profile if you haven't already:
+3. **Start the dev server**
+   ```bash
+   uv run apx dev start
+   ```
 
-```bash
-databricks configure --profile <your-profile>
-```
+   This starts the backend (FastAPI), frontend (Vite), and OpenAPI watcher. The dev server automatically provisions a local PGlite database — no external database setup needed.
 
-Then export the profile so the SDK picks it up:
+4. **Seed sample data (optional)**
 
-```bash
-export DATABRICKS_CONFIG_PROFILE=<your-profile>
-```
+   ```bash
+   uv run python scripts/seed_local.py
+   ```
 
-### 3. Set up Tesla API secrets
+   This populates the database with realistic sample data: a 3-year Tesla Model Y lease with 19 mileage readings spanning 18 months. You'll see the dashboard at ~50% mileage usage (18,000 of 36,000 miles used).
 
-The app reads Tesla OAuth credentials from a Databricks secret scope. Create the scope and add your secrets:
+   To reset and re-seed:
+   ```bash
+   uv run python scripts/seed_local.py --force
+   ```
 
-```bash
-databricks secrets create-scope tesla-lease-tracker
-databricks secrets put-secret tesla-lease-tracker tesla-client-id
-databricks secrets put-secret tesla-lease-tracker tesla-client-secret
-databricks secrets put-secret tesla-lease-tracker tesla-refresh-token
-```
+5. **Explore the UI**
 
-Each command will prompt you for the secret value.
+   Open [http://127.0.0.1:9000](http://127.0.0.1:9000)
 
-| Secret Key | Description |
-|---|---|
-| `tesla-client-id` | OAuth client ID from developer.tesla.com |
-| `tesla-client-secret` | OAuth client secret from developer.tesla.com |
-| `tesla-refresh-token` | Refresh token obtained via Tesla OAuth flow (expires every 90 days) |
+   If you seeded data, you'll see a fully populated dashboard with the hero gauge, metrics, and chart. If you didn't seed, use the lease configuration dialog to manually set up a sample lease, then explore the UI components. Without Tesla API credentials, you can test the frontend but won't be able to sync real mileage data.
 
-### 4. Start the dev server
+#### Detailed Walkthrough
 
-```bash
-uv run apx dev start
-```
+**Option A: With Sample Data (Recommended)**
 
-This starts the backend (FastAPI), frontend (Vite), and OpenAPI client watcher. Open [http://127.0.0.1:9000](http://127.0.0.1:9000) in your browser.
+1. **Seed the database**
+   ```bash
+   uv run python scripts/seed_local.py
+   ```
+   This inserts a 3-year Tesla Model Y lease (36k mile limit) with 19 historical readings.
 
-The dev server automatically provisions a local PGlite database (detected via `APX_DEV_DB_PORT`) — no external database setup needed.
+2. **Open the dashboard** — http://127.0.0.1:9000
 
-Useful commands during development:
+   You'll see:
+   - Hero gauge at **50% usage** (~18,000 of 36,000 miles used)
+   - Metrics cards populated (Daily Average: ~29 mi/day, Budget Rate: ~32.8 mi/day, etc.)
+   - Chart displaying 19 data points with trend line
+   - Working forecast toggle (Linear and Time Series models)
+
+**Option B: Manual Configuration**
+
+Once the dev server is running and you open http://127.0.0.1:9000:
+
+1. **Empty dashboard** — You'll see:
+   - Hero gauge at 0%
+   - Empty metrics cards (Daily Average, Budget Rate, Days Remaining, Projected End)
+   - Empty mileage chart
+   - Disabled "Sync Mileage" button
+
+2. **Configure a lease** — Click the **"⚙️ Configure Lease"** button and enter:
+   - **VIN**: `5YJ3E1EA1NF123456` (or any valid 17-character VIN)
+   - **Lease Start**: Any past date (e.g., `2024-06-01`)
+   - **Lease End**: A future date (e.g., `2027-05-31`)
+   - **Mileage Limit**: `36000` (or any limit)
+   - **Starting Odometer**: `12.0` (starting miles on the car)
+   - Click **Save**
+
+3. **Dashboard updates** — After saving:
+   - Hero gauge now shows **0% usage** (no readings yet)
+   - Metrics cards show **0 mi/day** and **N/A** (waiting for data)
+   - Chart remains empty (needs readings to display)
+   - "Sync Mileage" button is now **enabled** (but won't work without Tesla API)
+
+4. **Test the forecast toggle** — Click the toggle between "Linear" and "Time Series"
+   - Toggles work but show no data (forecast needs at least 3 readings)
+
+5. **Explore components** — You can now test:
+   - Lease configuration updates (edit and save again)
+   - UI responsiveness and styling
+   - Error handling (try invalid VIN, reversed dates, etc.)
+
+**Useful commands during development:**
 
 ```bash
 uv run apx dev status        # Check running servers
 uv run apx dev logs -f       # Stream logs
 uv run apx dev check         # Type-check TypeScript & Python
 uv run apx dev stop          # Stop all servers
+uv run pytest tests/backend/ -v  # Run backend tests (54 tests)
 ```
 
-### Optional: environment overrides
+### Full Setup (with Tesla API credentials)
 
-The backend config can be overridden via a `.env` file at the project root or environment variables prefixed with `TESLA_LEASE_TRACKER_`:
+For syncing real odometer readings from your Tesla:
 
-| Variable | Default | Description |
-|---|---|---|
-| `TESLA_LEASE_TRACKER_STORAGE_MODE` | `database` | Storage backend: `database` (Lakebase/PGlite) or `json` (flat file) |
-| `TESLA_LEASE_TRACKER_TESLA_SECRET_SCOPE` | `tesla-lease-tracker` | Databricks secret scope name |
-| `TESLA_LEASE_TRACKER_TESLA_API_REGION` | `na` | Tesla Fleet API region (`na`, `eu`, `cn`) |
-| `TESLA_LEASE_TRACKER_DATA_FILE_PATH` | `data/app_data.json` | Path for JSON data persistence (only used when `storage_mode=json`) |
-| `TESLA_LEASE_TRACKER_ZEROBUS_CATALOG` | `main` | Unity Catalog catalog for Zerobus Delta table |
-| `TESLA_LEASE_TRACKER_ZEROBUS_SCHEMA` | `default` | Unity Catalog schema for Zerobus Delta table |
+1. **Follow steps 1-3 above** (install dependencies, configure Databricks, start dev server)
+
+2. **Get Tesla OAuth credentials** from [developer.tesla.com](https://developer.tesla.com)
+
+3. **Create secret scope and add credentials**
+   ```bash
+   databricks secrets create-scope tesla-lease-tracker
+   databricks secrets put-secret tesla-lease-tracker tesla-client-id
+   databricks secrets put-secret tesla-lease-tracker tesla-client-secret
+   databricks secrets put-secret tesla-lease-tracker tesla-refresh-token
+   ```
+
+   Each command will prompt you for the secret value.
+
+   | Secret Key | Description |
+   |---|---|
+   | `tesla-client-id` | OAuth client ID from developer.tesla.com |
+   | `tesla-client-secret` | OAuth client secret from developer.tesla.com |
+   | `tesla-refresh-token` | Refresh token obtained via Tesla OAuth flow (expires every 90 days) |
+
+4. **Use the app**
+
+   Open [http://127.0.0.1:9000](http://127.0.0.1:9000), configure your lease details, then click "Sync Mileage" to fetch real data from the Tesla Fleet API.
+
+### Environment Variables
+
+#### Local Development
+
+APX auto-provisions PGlite and sets these automatically:
+- `APX_DEV_DB_PORT` — Database port
+- `APX_DEV_DB_PWD` — Database password
+
+Optional overrides (create `.env` file or export):
+- `TESLA_LEASE_TRACKER_STORAGE_MODE=json` — Use JSON instead of database
+- `TESLA_LEASE_TRACKER_TESLA_SECRET_SCOPE=custom-scope` — Custom secret scope name
+- `TESLA_LEASE_TRACKER_TESLA_API_REGION=na` — Tesla Fleet API region (`na`, `eu`, `cn`)
+- `TESLA_LEASE_TRACKER_DATA_FILE_PATH=data/app_data.json` — JSON file path (only used when `storage_mode=json`)
+- `DATABRICKS_CONFIG_PROFILE=<name>` — Use specific Databricks CLI profile
+
+#### Databricks Deployment
+
+Set in `databricks.yml` or workspace environment:
+- `TESLA_LEASE_TRACKER_STORAGE_MODE=database` (default)
+- `TESLA_LEASE_TRACKER_TESLA_SECRET_SCOPE=tesla-lease-tracker`
+- `TESLA_LEASE_TRACKER_ZEROBUS_CATALOG=main`
+- `TESLA_LEASE_TRACKER_ZEROBUS_SCHEMA=default`
+- `PGAPPNAME=tesla-lease-tracker` — Lakebase instance name
 
 ## Deploy to Databricks
 

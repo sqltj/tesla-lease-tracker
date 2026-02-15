@@ -28,6 +28,8 @@ from .models import (
     VersionOut,
 )
 from .tesla_service import TeslaService, TeslaServiceError
+from .db_models import LeaseConfigDB, MileageReadingDB
+from sqlmodel import delete
 
 api = APIRouter(prefix=api_prefix)
 
@@ -306,3 +308,86 @@ async def get_forecast(
             return forecast_linear(readings, cfg)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@api.post("/seed-local-data", response_model=dict, operation_id="seedLocalData")
+async def seed_local_data(
+    config: ConfigDep,
+    lease_repo: LeaseRepoDep,
+    mileage_repo: MileageRepoDep,
+    force: bool = False,
+):
+    """DEV ONLY: Seed database with realistic sample Tesla lease data.
+
+    Only available when running locally (APX_DEV_DB_PORT set).
+    """
+    import os
+    from datetime import date, timedelta
+
+    # Only allow in dev mode
+    if not os.environ.get("APX_DEV_DB_PORT"):
+        raise HTTPException(status_code=403, detail="Seed endpoint only available in dev mode")
+
+    if config.storage_mode != "database":
+        raise HTTPException(status_code=400, detail="Seed endpoint requires database storage mode")
+
+    assert lease_repo is not None
+    assert mileage_repo is not None
+
+    # Check if data already exists (skip check if force=True)
+    existing = lease_repo.get_lease_config()
+    if existing and not force:
+        raise HTTPException(
+            status_code=409,
+            detail="Database already contains lease data. Use POST /api/seed-local-data?force=true to reset.",
+        )
+
+    # 3-year Tesla Model Y lease: Jun 2024 → May 2027, 36k miles
+    lease_config = LeaseConfigIn(
+        vin="5YJ3E1EA1NF123456",
+        lease_start_date=date(2024, 6, 1),
+        lease_end_date=date(2027, 5, 31),
+        mileage_limit=36000,
+        start_odometer=12.0,
+    )
+    lease_repo.save_lease_config(lease_config)
+
+    # If force=True, clear old readings first
+    if force:
+        lease_repo.session.exec(delete(MileageReadingDB))
+
+    # 19 readings from Jul 2024 → Feb 2026 (~18 months, ~18,000 lease miles)
+    readings_data = [
+        (datetime(2024, 7, 15, 14, 30), 924.3),
+        (datetime(2024, 8, 10, 9, 15), 1847.6),
+        (datetime(2024, 9, 5, 16, 45), 2623.1),
+        (datetime(2024, 10, 1, 11, 20), 3398.7),
+        (datetime(2024, 10, 28, 13, 50), 4289.2),
+        (datetime(2024, 11, 22, 10, 30), 5067.8),
+        (datetime(2024, 12, 18, 15, 0), 5946.4),
+        (datetime(2025, 1, 12, 12, 40), 6734.9),
+        (datetime(2025, 2, 8, 14, 10), 7678.5),
+        (datetime(2025, 3, 5, 11, 55), 8512.1),
+        (datetime(2025, 4, 1, 9, 30), 9289.6),
+        (datetime(2025, 4, 28, 16, 20), 10178.3),
+        (datetime(2025, 5, 25, 13, 45), 10967.8),
+        (datetime(2025, 6, 20, 10, 15), 11834.2),
+        (datetime(2025, 7, 17, 14, 50), 12689.7),
+        (datetime(2025, 8, 13, 11, 30), 13523.4),
+        (datetime(2025, 9, 9, 15, 10), 14456.9),
+        (datetime(2025, 10, 6, 12, 25), 15267.5),
+        (datetime(2026, 2, 14, 10, 0), 18123.7),
+    ]
+
+    for ts, odometer in readings_data:
+        mileage_repo.add_reading(lease_config.vin, ts, odometer)
+
+    # Update last sync
+    lease_repo.set_last_sync(readings_data[-1][0])
+
+    return {
+        "status": "success",
+        "lease_vin": lease_config.vin,
+        "readings_count": len(readings_data),
+        "odometer_range": f"{readings_data[0][1]:.1f} - {readings_data[-1][1]:.1f} miles",
+    }
