@@ -119,6 +119,10 @@ export interface GetForecastParams {
   model?: string;
 }
 
+export interface SeedLocalDataParams {
+  force?: boolean;
+}
+
 export class ApiError extends Error {
   status: number;
   statusText: string;
@@ -303,6 +307,25 @@ export const syncMileage = async (options?: RequestInit): Promise<{ data: Mileag
 
 export function useSyncMileage(options?: { mutation?: UseMutationOptions<{ data: MileageReadingOut }, ApiError, void> }) {
   return useMutation({ mutationFn: () => syncMileage(), ...options?.mutation });
+}
+
+export const seedLocalData = async (params?: SeedLocalDataParams, options?: RequestInit): Promise<{ data: Record<string, unknown> }> => {
+  const searchParams = new URLSearchParams();
+  if (params?.force != null) searchParams.set("force", String(params?.force));
+  const queryString = searchParams.toString();
+  const url = queryString ? `/api/seed-local-data?${queryString}` : `/api/seed-local-data`;
+  const res = await fetch(url, { ...options, method: "POST" });
+  if (!res.ok) {
+    const body = await res.text();
+    let parsed: unknown;
+    try { parsed = JSON.parse(body); } catch { parsed = body; }
+    throw new ApiError(res.status, res.statusText, parsed);
+  }
+  return { data: await res.json() };
+};
+
+export function useSeedLocalData(options?: { mutation?: UseMutationOptions<{ data: Record<string, unknown> }, ApiError, { params: SeedLocalDataParams }> }) {
+  return useMutation({ mutationFn: (vars) => seedLocalData(vars.params), ...options?.mutation });
 }
 
 export const version = async (options?: RequestInit): Promise<{ data: VersionOut }> => {
