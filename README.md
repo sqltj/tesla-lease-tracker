@@ -124,7 +124,18 @@ For syncing real odometer readings from your Tesla:
 
 1. **Follow steps 1-3 above** (install dependencies, configure Databricks, start dev server)
 
-2. **Get Tesla OAuth credentials** from [developer.tesla.com](https://developer.tesla.com)
+2. **Register with Tesla Fleet API** (one-time setup)
+
+   This app requires Tesla Fleet API access. You must complete the registration process:
+   - Go to [Tesla Developer Console](https://developer.tesla.com)
+   - Create an application and request access
+   - **Important**: Call the **Register Endpoint** in your desired region (NA, EU, or CN)
+     - See [Tesla Fleet API Registration Docs](https://developer.tesla.com/docs/fleet-api/endpoints/partner-endpoints#register)
+     - You'll need a public/private key pair (see Fleet API docs for generation instructions)
+     - This registration must be completed before syncing will work
+   - Note: Registration can take a few hours for approval
+
+3. **Get Tesla OAuth credentials** from [developer.tesla.com](https://developer.tesla.com)
 
    When creating your OAuth application:
    - Set redirect URI to: `http://localhost:8080/callback`
