@@ -45,6 +45,38 @@ Perfect for trying out the dashboard without Tesla API credentials:
 
    You'll see the empty dashboard. Use the lease configuration dialog to set up a sample lease, then explore the UI components. Without Tesla API credentials, you can test the frontend but won't be able to sync real mileage data.
 
+#### Detailed Walkthrough
+
+Once the dev server is running and you open http://127.0.0.1:9000:
+
+1. **Empty dashboard** — You'll see:
+   - Hero gauge at 0%
+   - Empty metrics cards (Daily Average, Budget Rate, Days Remaining, Projected End)
+   - Empty mileage chart
+   - Disabled "Sync Mileage" button
+
+2. **Configure a lease** — Click the **"⚙️ Configure Lease"** button and enter:
+   - **VIN**: `5YJ3E1EA1NF123456` (or any valid 17-character VIN)
+   - **Lease Start**: Any past date (e.g., `2024-06-01`)
+   - **Lease End**: A future date (e.g., `2027-05-31`)
+   - **Mileage Limit**: `36000` (or any limit)
+   - **Starting Odometer**: `12.0` (starting miles on the car)
+   - Click **Save**
+
+3. **Dashboard updates** — After saving:
+   - Hero gauge now shows **0% usage** (no readings yet)
+   - Metrics cards show **0 mi/day** and **N/A** (waiting for data)
+   - Chart remains empty (needs readings to display)
+   - "Sync Mileage" button is now **enabled** (but won't work without Tesla API)
+
+4. **Test the forecast toggle** — Click the toggle between "Linear" and "Time Series"
+   - Toggles work but show no data (forecast needs at least 3 readings)
+
+5. **Explore components** — You can now test:
+   - Lease configuration updates (edit and save again)
+   - UI responsiveness and styling
+   - Error handling (try invalid VIN, reversed dates, etc.)
+
 **Useful commands during development:**
 
 ```bash
@@ -52,6 +84,7 @@ uv run apx dev status        # Check running servers
 uv run apx dev logs -f       # Stream logs
 uv run apx dev check         # Type-check TypeScript & Python
 uv run apx dev stop          # Stop all servers
+uv run pytest tests/backend/ -v  # Run backend tests (54 tests)
 ```
 
 ### Full Setup (with Tesla API credentials)
