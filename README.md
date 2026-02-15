@@ -494,6 +494,16 @@ uv run apx dev check               # TypeScript + Python type checks
 - Make sure no other process is using port 9000: `lsof -i :9000`
 - Check APX status: `uv run apx dev status`
 
+## Future Improvements
+
+See [DEPLOYMENT_ROADMAP.md](./DEPLOYMENT_ROADMAP.md) for planned enhancements:
+- **Automated Infrastructure Setup**: Move Lakebase + Delta table creation to DAB notebooks
+- **Single-Command Post-Deploy**: `uv run python scripts/post_deploy_setup.py` to complete all setup
+- **Multi-Region Support**: Simplified regional deployment
+- **Monitoring & Alerting**: Built-in dashboards for mileage data quality
+
+These improvements will make Databricks deployment even more streamlined.
+
 ## Tech Stack
 
 | Layer | Technology |
