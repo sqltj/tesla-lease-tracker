@@ -126,6 +126,8 @@ targets:
   dev:
     mode: development
     default: true
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
     variables:
       region: "us-west-2"
       environment: "dev"
@@ -133,6 +135,8 @@ targets:
 
   staging:
     mode: development
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
     variables:
       region: "us-west-2"
       environment: "staging"
@@ -140,6 +144,8 @@ targets:
 
   prod-na:
     mode: production
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
     variables:
       region: "us-west-2"
       environment: "prod-na"
@@ -147,6 +153,8 @@ targets:
 
   prod-eu:
     mode: production
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
     variables:
       region: "eu-west-1"
       environment: "prod-eu"
@@ -154,6 +162,8 @@ targets:
 
   prod-cn:
     mode: production
+    workspace:
+      host: https://dbc-xxxx.cloud.databricks.com
     variables:
       region: "cn-north-1"
       environment: "prod-cn"
