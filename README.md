@@ -126,23 +126,44 @@ For syncing real odometer readings from your Tesla:
 
 2. **Get Tesla OAuth credentials** from [developer.tesla.com](https://developer.tesla.com)
 
-3. **Create secret scope and add credentials**
+   When creating your OAuth application:
+   - Set redirect URI to: `http://localhost:8080/callback`
+   - Enable these scopes:
+     - `openid`
+     - `email`
+     - `offline_access`
+     - `vehicle_device_data` (required for Fleet API)
+
+3. **Get your refresh token**
+
+   Run the automated OAuth script:
    ```bash
-   databricks secrets create-scope tesla-lease-tracker
-   databricks secrets put-secret tesla-lease-tracker tesla-client-id
-   databricks secrets put-secret tesla-lease-tracker tesla-client-secret
-   databricks secrets put-secret tesla-lease-tracker tesla-refresh-token
+   uv run python scripts/get_tesla_refresh_token_auto.py \
+     --client-id YOUR_CLIENT_ID \
+     --client-secret YOUR_CLIENT_SECRET
    ```
 
-   Each command will prompt you for the secret value.
+   This will:
+   - Open Tesla authorization page in your browser
+   - Start a local server to capture the callback
+   - Exchange the authorization code for a refresh token
+   - Display your refresh token to copy
+
+4. **Create secret scope and add credentials**
+   ```bash
+   databricks secrets create-scope tesla-lease-tracker
+   databricks secrets put-secret tesla-lease-tracker tesla-client-id --string-value "YOUR_CLIENT_ID"
+   databricks secrets put-secret tesla-lease-tracker tesla-client-secret --string-value "YOUR_CLIENT_SECRET"
+   databricks secrets put-secret tesla-lease-tracker tesla-refresh-token --string-value "YOUR_REFRESH_TOKEN"
+   ```
 
    | Secret Key | Description |
    |---|---|
    | `tesla-client-id` | OAuth client ID from developer.tesla.com |
    | `tesla-client-secret` | OAuth client secret from developer.tesla.com |
-   | `tesla-refresh-token` | Refresh token obtained via Tesla OAuth flow (expires every 90 days) |
+   | `tesla-refresh-token` | Refresh token from OAuth flow (expires every 90 days) |
 
-4. **Use the app**
+5. **Use the app**
 
    Open [http://127.0.0.1:9000](http://127.0.0.1:9000), configure your lease details, then click "Sync Mileage" to fetch real data from the Tesla Fleet API.
 
@@ -308,6 +329,33 @@ uv run pytest tests/backend/ -v    # 54 backend tests (models, repos, forecast, 
 uv run apx bun run test            # 13 frontend tests (vitest)
 uv run apx dev check               # TypeScript + Python type checks
 ```
+
+## Troubleshooting
+
+### Tesla OAuth / Refresh Token Issues
+
+**Problem**: "We don't recognize this redirect_uri"
+- **Solution**: Make sure your redirect URI in the Tesla developer app matches what you're using in the script. Default is `http://localhost:8080/callback`.
+
+**Problem**: Refresh token expires every 90 days
+- **Solution**: The app uses refresh tokens to get new access tokens automatically. If you see a "refresh token expired" error, you'll need to re-run the OAuth flow to get a new refresh token:
+  ```bash
+  uv run python scripts/get_tesla_refresh_token_auto.py --client-id YOUR_ID --client-secret YOUR_SECRET
+  ```
+  Then update the Databricks secret with the new token.
+
+**Problem**: "vehicle_device_data" scope errors
+- **Solution**: Make sure you've enabled the `vehicle_device_data` scope in your Tesla developer app — it's required for Fleet API access to odometer readings.
+
+### Local Development
+
+**Empty dashboard?**
+- Run the seed script to populate sample data: `uv run python scripts/seed_local.py`
+- Or configure a lease manually and sync real data with valid Tesla credentials
+
+**Dev server won't start?**
+- Make sure no other process is using port 9000: `lsof -i :9000`
+- Check APX status: `uv run apx dev status`
 
 ## Tech Stack
 
