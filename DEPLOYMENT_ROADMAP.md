@@ -268,9 +268,51 @@ subprocess.run([
 
 ---
 
-## Future Enhancements
+## Phase 2: Performance & Monitoring (Completed)
 
-- **Phase 2**: Add Zerobus Delta table partitioning by date
-- **Phase 2**: Add monitoring dashboard for mileage readings table
+### Goal
+Optimize Delta table performance and provide operational visibility into data ingestion.
+
+### Implementation
+
+1. **Delta Table Liquid Clustering**
+   - Applied liquid clustering on (vin, timestamp) for automatic optimization
+   - No manual partitioning needed - Delta handles clustering dynamically
+   - Enabled Change Data Feed for CDC and streaming use cases
+   - Enabled file size optimization rewrites
+   - Updated `2_create_delta_table.sql` with CLUSTER BY clause
+
+2. **Monitoring Dashboard**
+   - Created `databricks/notebooks/monitoring/3_monitoring_dashboard.sql`
+   - Real-time data quality metrics
+   - Per-vehicle tracking statistics with miles/day averages
+   - Ingestion pattern analysis by date
+   - Data validation checks (missing values, future dates, duplicates)
+   - Storage and partition statistics
+
+### Benefits
+- ✅ **Query Performance**: Liquid clustering automatically optimizes data layout for (vin, timestamp) queries
+- ✅ **No Manual Tuning**: Delta manages clustering automatically - no need to repartition
+- ✅ **Operational Visibility**: Dashboard provides real-time monitoring of data health
+- ✅ **Data Quality**: Automated checks catch common data issues
+- ✅ **Scalability**: Change Data Feed enables downstream analytics pipelines
+- ✅ **Cost Efficiency**: Automatic clustering reduces query costs by skipping irrelevant data
+
+### Usage
+
+**View Monitoring Dashboard:**
+```bash
+# In Databricks workspace:
+# 1. Open notebook: /Users/{email}/tesla-lease-tracker/notebooks/monitoring/3_monitoring_dashboard.sql
+# 2. Run all cells to see real-time metrics
+# 3. Create Databricks SQL dashboard from queries
+```
+
+---
+
+## Future Enhancements (Phase 3+)
+
 - **Phase 3**: Automated backups and retention policies
 - **Phase 3**: Multi-region deployment support
+- **Phase 3**: Alert rules for data anomalies (e.g., no readings in 24 hours)
+- **Phase 4**: Real-time analytics dashboard with Databricks SQL
