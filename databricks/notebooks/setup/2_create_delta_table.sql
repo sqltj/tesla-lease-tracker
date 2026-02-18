@@ -21,10 +21,13 @@ CREATE TABLE IF NOT EXISTS main.default.mileage_readings (
     odometer DOUBLE NOT NULL
 )
 USING DELTA
+CLUSTER BY (vin, timestamp)
 TBLPROPERTIES (
-    'description' = 'Mileage readings streamed from Tesla Fleet API via Zerobus',
+    'description' = 'Mileage readings streamed from Tesla Fleet API via Zerobus (Phase 2: Liquid clustering for auto-optimization)',
     'owner' = 'tesla-lease-tracker',
-    'created_by' = 'post_deploy_setup'
+    'created_by' = 'post_deploy_setup',
+    'delta.enableChangeDataFeed' = 'true',
+    'delta.tuneFileSizesForRewrites' = 'true'
 );
 
 -- COMMAND ----------

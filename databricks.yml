@@ -5,11 +5,38 @@ sync:
   include:
     - .build
 
+variables:
+  region:
+    description: "AWS region for deployment"
+    default: "us-west-2"
+  environment:
+    description: "Deployment environment"
+    default: "dev"
+  alert_email:
+    description: "Email for anomaly alerts"
+    default: "REPLACE_WITH_YOUR_EMAIL@example.com"
+  workspace_host:
+    description: "Databricks workspace URL (e.g., https://dbc-abc123.cloud.databricks.com)"
+    default: "REPLACE_WITH_YOUR_WORKSPACE_URL"
+
 artifacts:
   default:
     build: uv run apx build
 
 resources:
+  sql_warehouses:
+    tesla_lease_tracker_warehouse:
+      name: "tesla-lease-tracker-warehouse-${bundle.target}"
+      cluster_size: "2X-Small"
+      enable_serverless_compute: true
+      auto_stop_mins: 10
+      warehouse_type: "PRO"
+      tags:
+        - key: "project"
+          value: "tesla-lease-tracker"
+        - key: "environment"
+          value: "${var.environment}"
+
   jobs:
     setup_infrastructure:
       name: "Tesla Lease Tracker - Setup Infrastructure"
@@ -18,26 +45,66 @@ resources:
         - task_key: create_lakebase
           notebook_task:
             notebook_path: /Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/setup/1_create_lakebase
-          job_cluster_key: setup_cluster
+          environment_key: python_env
           timeout_seconds: 1800
 
         - task_key: create_delta_table
-          notebook_task:
-            notebook_path: /Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/setup/2_create_delta_table
-          job_cluster_key: setup_cluster
+          sql_task:
+            file:
+              path: /Workspace/Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/setup/2_create_delta_table.sql
+          warehouse_id: ${resources.sql_warehouses.tesla_lease_tracker_warehouse.id}
           timeout_seconds: 600
           depends_on:
             - task_key: create_lakebase
 
-      job_clusters:
-        - job_cluster_key: setup_cluster
-          new_cluster:
-            spark_version: "15.3.x-scala2.12"
-            node_type_id: "i3.xlarge"
-            num_workers: 1
-            aws_attributes:
-              availability: "SPOT_WITH_FALLBACK"
-            init_scripts: []
+      environments:
+        - environment_key: python_env
+          spec:
+            client: "1"
+            dependencies:
+              - "databricks-sdk>=0.20.0"
+
+    backup_mileage_readings:
+      name: "[${bundle.target}] Tesla Lease Tracker - Weekly Backup"
+      description: "Phase 3: Create point-in-time backup snapshots (weekly)"
+      schedule:
+        quartz_cron_expression: "0 0 1 ? * SUN"
+        timezone_id: "UTC"
+      tasks:
+        - task_key: create_backup_snapshot
+          sql_task:
+            file:
+              path: /Workspace/Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/setup/4_retention_and_backups.sql
+          warehouse_id: ${resources.sql_warehouses.tesla_lease_tracker_warehouse.id}
+          timeout_seconds: 900
+
+    anomaly_detection_alerts:
+      name: "[${bundle.target}] Tesla Lease Tracker - Data Quality Alerts"
+      description: "Phase 3: Monitor for data anomalies and ingestion issues (every 30 min)"
+      schedule:
+        quartz_cron_expression: "0 */30 * * * ?"
+        timezone_id: "UTC"
+      tasks:
+        - task_key: check_data_anomalies
+          sql_task:
+            file:
+              path: /Workspace/Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/monitoring/4_anomaly_alerts.sql
+          warehouse_id: ${resources.sql_warehouses.tesla_lease_tracker_warehouse.id}
+          timeout_seconds: 600
+
+    vacuum_mileage_readings:
+      name: "[${bundle.target}] Tesla Lease Tracker - Optimize Storage (Weekly Vacuum)"
+      description: "Phase 3: Clean up old files and optimize Delta table storage"
+      schedule:
+        quartz_cron_expression: "0 0 2 ? * SUN"
+        timezone_id: "UTC"
+      tasks:
+        - task_key: vacuum_delta_table
+          sql_task:
+            file:
+              path: /Workspace/Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/setup/4_retention_and_backups.sql
+          warehouse_id: ${resources.sql_warehouses.tesla_lease_tracker_warehouse.id}
+          timeout_seconds: 1200
 
   apps:
     tesla-lease-tracker-app:
@@ -52,3 +119,45 @@ targets:
   dev:
     mode: development
     default: true
+    workspace:
+      host: ${var.workspace_host}
+    variables:
+      region: "us-west-2"
+      environment: "dev"
+      alert_email: "REPLACE_WITH_DEV_EMAIL@example.com"
+
+  staging:
+    mode: development
+    workspace:
+      host: ${var.workspace_host}
+    variables:
+      region: "us-west-2"
+      environment: "staging"
+      alert_email: "REPLACE_WITH_STAGING_EMAIL@example.com"
+
+  prod-na:
+    mode: production
+    workspace:
+      host: ${var.workspace_host}
+    variables:
+      region: "us-west-2"
+      environment: "prod-na"
+      alert_email: "REPLACE_WITH_PROD_NA_EMAIL@example.com"
+
+  prod-eu:
+    mode: production
+    workspace:
+      host: ${var.workspace_host}
+    variables:
+      region: "eu-west-1"
+      environment: "prod-eu"
+      alert_email: "REPLACE_WITH_PROD_EU_EMAIL@example.com"
+
+  prod-cn:
+    mode: production
+    workspace:
+      host: ${var.workspace_host}
+    variables:
+      region: "cn-north-1"
+      environment: "prod-cn"
+      alert_email: "REPLACE_WITH_PROD_CN_EMAIL@example.com"

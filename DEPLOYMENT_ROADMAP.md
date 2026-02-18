@@ -268,9 +268,160 @@ subprocess.run([
 
 ---
 
-## Future Enhancements
+## Phase 2: Performance & Monitoring (Completed)
 
-- **Phase 2**: Add Zerobus Delta table partitioning by date
-- **Phase 2**: Add monitoring dashboard for mileage readings table
-- **Phase 3**: Automated backups and retention policies
-- **Phase 3**: Multi-region deployment support
+### Goal
+Optimize Delta table performance and provide operational visibility into data ingestion.
+
+### Implementation
+
+1. **Delta Table Liquid Clustering**
+   - Applied liquid clustering on (vin, timestamp) for automatic optimization
+   - No manual partitioning needed - Delta handles clustering dynamically
+   - Enabled Change Data Feed for CDC and streaming use cases
+   - Enabled file size optimization rewrites
+   - Updated `2_create_delta_table.sql` with CLUSTER BY clause
+
+2. **Monitoring Dashboard**
+   - Created `databricks/notebooks/monitoring/3_monitoring_dashboard.sql`
+   - Real-time data quality metrics
+   - Per-vehicle tracking statistics with miles/day averages
+   - Ingestion pattern analysis by date
+   - Data validation checks (missing values, future dates, duplicates)
+   - Storage and partition statistics
+
+### Benefits
+- ✅ **Query Performance**: Liquid clustering automatically optimizes data layout for (vin, timestamp) queries
+- ✅ **No Manual Tuning**: Delta manages clustering automatically - no need to repartition
+- ✅ **Operational Visibility**: Dashboard provides real-time monitoring of data health
+- ✅ **Data Quality**: Automated checks catch common data issues
+- ✅ **Scalability**: Change Data Feed enables downstream analytics pipelines
+- ✅ **Cost Efficiency**: Automatic clustering reduces query costs by skipping irrelevant data
+
+### Usage
+
+**View Monitoring Dashboard:**
+```bash
+# In Databricks workspace:
+# 1. Open notebook: /Users/{email}/tesla-lease-tracker/notebooks/monitoring/3_monitoring_dashboard.sql
+# 2. Run all cells to see real-time metrics
+# 3. Create Databricks SQL dashboard from queries
+```
+
+---
+
+## Phase 3: Backups, Retention, and Multi-Region Support (Completed)
+
+### Goal
+Implement production-grade reliability, compliance, and global deployment capabilities.
+
+### Implementation Summary
+
+**Retention & Backups:**
+- 30-day Delta time travel + 7-day file retention
+- Point-in-time backup strategy via Delta clones
+- Created `4_retention_and_backups.sql` notebook
+
+**Anomaly Detection:**
+- 4 alert rules: no readings in 24h, impossible odometer, data quality, ingestion rate anomalies
+- Created `4_anomaly_alerts.sql` with SQL queries ready for Databricks alerts
+- Monitoring dashboard with statistical anomaly detection
+
+**Automated Jobs:**
+- `backup_mileage_readings` (weekly Sunday 1 AM)
+- `anomaly_detection_alerts` (every 30 min)
+- `vacuum_mileage_readings` (weekly Sunday 2 AM)
+
+**Multi-Region Support:**
+- 5 deployment targets: dev, staging, prod-na, prod-eu, prod-cn
+- Region-specific variables for AWS regions and alert emails
+- Environment-aware job naming and configuration
+
+### Deployment Examples
+
+```bash
+# Dev (default)
+databricks bundle deploy
+uv run python scripts/post_deploy_setup.py --profile dev
+
+# Production North America
+databricks bundle deploy -t prod-na
+uv run python scripts/post_deploy_setup.py --profile prod-na
+
+# Production Europe (GDPR)
+databricks bundle deploy -t prod-eu
+uv run python scripts/post_deploy_setup.py --profile prod-eu
+```
+
+---
+
+## Phase 3b: Free Edition Compatibility (Completed Feb 2026)
+
+### Goal
+Migrate Databricks Asset Bundle configuration to support Databricks Free Edition serverless compute, enabling deployment without a paid subscription.
+
+### Problem
+Original DAB configuration required custom clusters (`node_type_id: "i3.xlarge"`) which are incompatible with free edition, which only supports serverless compute.
+
+### Solution
+**Serverless SQL Warehouse Migration:**
+1. Added `sql_warehouses` resource to DAB (2X-Small, auto-stop in 10 min)
+2. Converted all SQL notebook tasks to `sql_task` format with `warehouse_id`
+3. Converted Python notebook tasks to use `environment_key` with serverless dependencies
+4. Removed all `job_clusters` sections (incompatible with free edition)
+5. Centralized placeholder management using bundle variables
+
+### Configuration Changes
+- **New resource:** `sql_warehouses.tesla_lease_tracker_warehouse`
+- **Job tasks:** 4 jobs (1 Python + 3 SQL) now use serverless compute
+- **Variables:** Added `workspace_host` for flexible multi-environment deployment
+- **Placeholders:** Updated alert emails to `REPLACE_WITH_*` for clear configuration
+
+### Validation & Deployment
+**Pre-deployment validation:**
+```bash
+uv run python scripts/validate_dab_config.py
+```
+
+Checks for:
+- Placeholder values needing replacement
+- Workspace connectivity
+- SQL warehouse availability
+- Notebook existence in workspace
+
+**Deployment:**
+```bash
+# Build and validate
+uv run apx build
+databricks bundle validate
+
+# Deploy to free edition workspace
+databricks bundle deploy -t dev
+```
+
+### Benefits
+- ✅ **Free Edition Compatible** - Deploy without paid Databricks subscription
+- ✅ **Lower Costs** - Serverless charges only for usage (vs. always-on clusters)
+- ✅ **Faster Cold Starts** - No cluster provisioning delay
+- ✅ **Auto-Scaling** - Serverless adapts to workload automatically
+- ✅ **Multi-Region Ready** - 5 targets (dev, staging, prod-na, prod-eu, prod-cn)
+
+### Documentation
+- **Deployment Guide:** `docs/DATABRICKS_DEPLOYMENT.md` - Complete step-by-step instructions
+- **Validation Script:** `scripts/validate_dab_config.py` - Catches configuration errors
+- **Configuration:** `databricks.yml` - Serverless-first approach
+
+### Limitations
+- Free edition has usage quotas (sufficient for dev/testing)
+- Only one serverless SQL warehouse per workspace
+- Premium features (Unity Catalog, advanced governance) unavailable
+
+---
+
+## Future Enhancements (Phase 4+)
+
+- **Phase 4**: Real-time analytics dashboard with Databricks SQL
+- **Phase 4**: ML-based forecasting improvements
+- **Phase 4**: Advanced CI/CD with GitHub Actions
+- **Phase 4**: Cost optimization and resource tagging
+- **Phase 5**: Unity Catalog integration for production deployments
