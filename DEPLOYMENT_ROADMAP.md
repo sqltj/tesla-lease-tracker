@@ -355,9 +355,73 @@ uv run python scripts/post_deploy_setup.py --profile prod-eu
 
 ---
 
+## Phase 3b: Free Edition Compatibility (Completed Feb 2026)
+
+### Goal
+Migrate Databricks Asset Bundle configuration to support Databricks Free Edition serverless compute, enabling deployment without a paid subscription.
+
+### Problem
+Original DAB configuration required custom clusters (`node_type_id: "i3.xlarge"`) which are incompatible with free edition, which only supports serverless compute.
+
+### Solution
+**Serverless SQL Warehouse Migration:**
+1. Added `sql_warehouses` resource to DAB (2X-Small, auto-stop in 10 min)
+2. Converted all SQL notebook tasks to `sql_task` format with `warehouse_id`
+3. Converted Python notebook tasks to use `environment_key` with serverless dependencies
+4. Removed all `job_clusters` sections (incompatible with free edition)
+5. Centralized placeholder management using bundle variables
+
+### Configuration Changes
+- **New resource:** `sql_warehouses.tesla_lease_tracker_warehouse`
+- **Job tasks:** 4 jobs (1 Python + 3 SQL) now use serverless compute
+- **Variables:** Added `workspace_host` for flexible multi-environment deployment
+- **Placeholders:** Updated alert emails to `REPLACE_WITH_*` for clear configuration
+
+### Validation & Deployment
+**Pre-deployment validation:**
+```bash
+uv run python scripts/validate_dab_config.py
+```
+
+Checks for:
+- Placeholder values needing replacement
+- Workspace connectivity
+- SQL warehouse availability
+- Notebook existence in workspace
+
+**Deployment:**
+```bash
+# Build and validate
+uv run apx build
+databricks bundle validate
+
+# Deploy to free edition workspace
+databricks bundle deploy -t dev
+```
+
+### Benefits
+- ✅ **Free Edition Compatible** - Deploy without paid Databricks subscription
+- ✅ **Lower Costs** - Serverless charges only for usage (vs. always-on clusters)
+- ✅ **Faster Cold Starts** - No cluster provisioning delay
+- ✅ **Auto-Scaling** - Serverless adapts to workload automatically
+- ✅ **Multi-Region Ready** - 5 targets (dev, staging, prod-na, prod-eu, prod-cn)
+
+### Documentation
+- **Deployment Guide:** `docs/DATABRICKS_DEPLOYMENT.md` - Complete step-by-step instructions
+- **Validation Script:** `scripts/validate_dab_config.py` - Catches configuration errors
+- **Configuration:** `databricks.yml` - Serverless-first approach
+
+### Limitations
+- Free edition has usage quotas (sufficient for dev/testing)
+- Only one serverless SQL warehouse per workspace
+- Premium features (Unity Catalog, advanced governance) unavailable
+
+---
+
 ## Future Enhancements (Phase 4+)
 
 - **Phase 4**: Real-time analytics dashboard with Databricks SQL
 - **Phase 4**: ML-based forecasting improvements
 - **Phase 4**: Advanced CI/CD with GitHub Actions
 - **Phase 4**: Cost optimization and resource tagging
+- **Phase 5**: Unity Catalog integration for production deployments
