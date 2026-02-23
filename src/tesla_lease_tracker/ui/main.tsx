@@ -7,8 +7,15 @@ import { routeTree } from "@/types/routeTree.gen";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// Create a new query client instance
-const queryClient = new QueryClient();
+// Create a new query client instance with resilient retry behavior
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 500,
+    },
+  },
+});
 
 const router = createRouter({
   routeTree,
