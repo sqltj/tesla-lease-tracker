@@ -281,134 +281,232 @@ Set in `databricks.yml` or workspace environment:
 
 ## Deploy to Databricks
 
-### Pre-Deployment Checklist
+### Prerequisites
 
-Before deploying, ensure you have:
-- [ ] Configured Databricks CLI: `databricks auth login --host <workspace-url>`
-- [ ] Created Tesla OAuth credentials at [developer.tesla.com](https://developer.tesla.com)
-- [ ] Added Tesla credentials to Databricks secrets:
-  ```bash
-  databricks secrets create-scope tesla-lease-tracker
-  databricks secrets put-secret tesla-lease-tracker tesla-client-id --string-value "YOUR_CLIENT_ID"
-  databricks secrets put-secret tesla-lease-tracker tesla-client-secret --string-value "YOUR_CLIENT_SECRET"
-  ```
-- [ ] (Optional) Obtained Tesla refresh token:
-  ```bash
-  uv run python scripts/get_tesla_refresh_token_auto.py \
-    --client-id YOUR_CLIENT_ID \
-    --client-secret YOUR_CLIENT_SECRET
-  ```
-  Then store it in Databricks secrets.
+Before deploying, you must have:
+- **Databricks workspace** with a configured CLI profile
+- **Tesla OAuth credentials** from [developer.tesla.com](https://developer.tesla.com)
+  - Redirect URI: `http://localhost:8080/callback`
+  - Scopes: `openid`, `email`, `offline_access`, `vehicle_device_data`
 
-### Deployment Steps
+### Step 1: Authenticate with Databricks
 
-### 1. Provision Infrastructure
+```bash
+databricks auth login --host https://<your-workspace>.cloud.databricks.com
+```
 
-**Create a Lakebase instance** (managed PostgreSQL for transactional data):
+Export your profile if it's not the default:
+```bash
+export DATABRICKS_CONFIG_PROFILE=<your-profile>
+```
 
+### Step 2: Create Databricks Secrets for Tesla
+
+Create a secret scope and store your Tesla OAuth credentials:
+
+```bash
+# Create scope
+databricks secrets create-scope tesla-lease-tracker
+
+# Add Tesla OAuth credentials (from developer.tesla.com)
+databricks secrets put-secret tesla-lease-tracker tesla-client-id \
+  --string-value "YOUR_CLIENT_ID"
+
+databricks secrets put-secret tesla-lease-tracker tesla-client-secret \
+  --string-value "YOUR_CLIENT_SECRET"
+```
+
+**Optional:** If you already have a refresh token, store it too:
+```bash
+databricks secrets put-secret tesla-lease-tracker tesla-refresh-token \
+  --string-value "YOUR_REFRESH_TOKEN"
+```
+
+Otherwise, you'll generate it after deployment via the UI.
+
+### Step 3: Create Infrastructure (Lakebase + Delta Table)
+
+The app needs two resources:
+1. **Lakebase** — Managed PostgreSQL for transactional lease data
+2. **Delta table** — For streaming mileage readings to analytics
+
+Create the Lakebase instance:
 ```bash
 databricks database create-database-instance \
-    --name tesla-lease-tracker \
-    --capacity SMALL \
-    --profile <your-profile>
+  --name tesla-lease-tracker \
+  --capacity SMALL
 ```
 
-Wait for creation to complete (~5-10 minutes).
+Wait for creation to complete (~5-10 minutes). Check status:
+```bash
+databricks database get-database-instance --name tesla-lease-tracker
+```
 
-**Create the Zerobus Delta table** (for analytics streaming):
-
+Create the Delta table for Zerobus streaming:
 ```bash
 databricks sql execute "CREATE TABLE IF NOT EXISTS main.default.mileage_readings (
-    vin STRING NOT NULL,
-    timestamp TIMESTAMP NOT NULL,
-    odometer DOUBLE NOT NULL
-) USING DELTA;" \
-    --profile <your-profile>
+  vin STRING NOT NULL,
+  timestamp TIMESTAMP NOT NULL,
+  odometer DOUBLE NOT NULL
+) USING DELTA;"
 ```
 
-Or use the Databricks SQL editor to run the query manually.
+Or use the Databricks SQL editor to run this query manually.
 
-### 2. Build
+### Step 4: Build & Deploy App
 
+Build the React frontend and package the app:
 ```bash
 uv run apx build
 ```
 
-This compiles the React frontend into static assets and packages everything into a Python wheel.
+Deploy to Databricks (creates the app and associated resources):
+```bash
+databricks bundle deploy
+```
 
-### 3. Deploy
+Once complete, check your deployed URL:
+```bash
+databricks app get tesla-lease-tracker
+# Output shows: "url": "https://dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker"
+```
+
+### Step 5: Bootstrap ML Pipeline
+
+The app includes a daily ML training pipeline for mileage forecasting. To enable it:
+
+**5a. Deploy the SDP feature pipeline and training workflow:**
 
 ```bash
-databricks bundle deploy -p <your-profile>
+# Already included in `databricks bundle deploy` above
+# Verify pipeline exists:
+databricks pipelines list | grep ml_feature_pipeline
 ```
 
-This uploads the built artifacts and creates (or updates) the Databricks App resource defined in `databricks.yml`, including the Lakebase database resource.
+**5b. Run the training job once to register the initial model:**
 
-The deployed app runs via:
-```
-uvicorn tesla_lease_tracker.backend.app:app --workers 2
-```
-
-### 4. Post-Deployment Setup
-
-After deployment completes, run these steps to enable Tesla sync:
-
-**Step A: Get your deployed URL**
 ```bash
-databricks app get tesla-lease-tracker --profile <your-profile>
-# Look for the "url" field in the output
-# Example: https://dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker
+databricks bundle run ml_training_pipeline
 ```
 
-**Step B: Complete Tesla Fleet API Registration** (one-time setup)
+This:
+- Runs the SDP feature pipeline (computes lease_miles and days_since_start)
+- Trains linear + Holt-Winters forecast models
+- Saves fitted parameters as JSON artifacts
+- Registers model to Unity Catalog (`main.tesla_lease_tracker.forecast_model`)
+- Sets `@champion` alias
 
-Register your deployed domain with Tesla's Fleet API:
+**5c. Enable Model Serving endpoint (after Step 5b):**
+
+Edit `databricks.yml` and uncomment the `model_serving_endpoints` block (search for "⚠️ BOOTSTRAP"):
+
+```yaml
+model_serving_endpoints:
+  forecast_endpoint:
+    name: "tesla-lease-tracker-forecast-${bundle.target}"
+    config:
+      served_entities:
+        - entity_name: "main.tesla_lease_tracker.forecast_model@champion"
+          workload_size: "Small"
+          scale_to_zero_enabled: true
+```
+
+Redeploy to create the endpoint:
 ```bash
-# Generate key pair first (if not already done)
+databricks bundle deploy
+```
+
+**5d. Enable forecast routing in the app:**
+
+Edit `databricks.yml` and add to the app environment (under `apps.tesla-lease-tracker-app`):
+
+```yaml
+environment:
+  - name: TESLA_LEASE_TRACKER_FORECAST_ENDPOINT
+    value: "tesla-lease-tracker-forecast-${bundle.target}"
+```
+
+Redeploy:
+```bash
+databricks bundle deploy
+```
+
+✅ **ML pipeline is now active** — Models retrain daily at 3am UTC.
+
+### Step 6: Register with Tesla Fleet API
+
+Your app now has a public URL. Register it with Tesla's Fleet API (one-time setup):
+
+**Generate EC key pair:**
+```bash
 openssl ecparam -name prime256v1 -genkey -noout -out private-key.pem
 openssl ec -in private-key.pem -pubout -out public-key.pem
+```
 
-# Register with Tesla (uses secrets from Databricks)
+**Register with Tesla:**
+```bash
 uv run python scripts/register_fleet_api.py \
   --domain dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker \
   --region na
 ```
 
 The script will:
-- Retrieve your Tesla OAuth credentials from Databricks secrets
+- Retrieve Tesla credentials from Databricks secrets
 - Get a partner authentication token
-- Register your domain with Tesla's Fleet API
-- Show you the status
+- Register your domain with Tesla
+- Show confirmation status
 
-**Step C: (Optional) Seed sample data**
+**Note:** Registration approval can take 1-24 hours. You'll receive a confirmation email.
 
-To test the app with realistic sample lease data before syncing real Tesla data:
-```bash
-# This requires local dev tools, so you'd run this locally and then have
-# data available when deployed (if using same database)
-# Or use the UI to manually add a lease and readings
-```
+### Step 7: Verify Deployment
 
-**Step D: Verify setup**
+1. **Open the app:**
+   ```
+   https://dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker
+   ```
 
-- Open your deployed URL: `https://dbc-xxxxxxxx.cloud.databricks.com/apps/tesla-lease-tracker`
-- Configure a lease in the UI
-- Wait for Tesla Fleet API registration approval (1-24 hours, you'll get an email)
-- Once approved, the "Sync Mileage" button will work
+2. **Configure a lease** — Use the "⚙️ Configure Lease" button to set:
+   - VIN (from your Tesla)
+   - Lease dates
+   - Mileage limit (typically 36,000)
+   - Starting odometer
 
-### Migrating existing JSON data
+3. **Wait for Tesla approval** — Once Fleet API registration is approved, the "Sync Mileage" button will work
 
-If you have an existing JSON data file and are switching to database storage:
+4. **Test sync** — Click "Sync Mileage" to fetch real odometer data from your Tesla
 
-```bash
-uv run python scripts/migrate_json_to_lakebase.py --json-path data/app_data.json
-```
+### Updating the App After Changes
 
-### Updating after changes
+To deploy changes after you've made code edits:
 
 ```bash
-uv run apx build && databricks bundle deploy -p <your-profile>
+uv run apx build && databricks bundle deploy
 ```
+
+### Troubleshooting Deployment
+
+**"Lakebase instance not found"**
+- Verify creation completed: `databricks database get-database-instance --name tesla-lease-tracker`
+- If not created, run the creation command again
+
+**"mileage_readings table not found"**
+- Create it manually via Databricks SQL editor or the command above
+- Verify: `SELECT * FROM main.default.mileage_readings LIMIT 1`
+
+**App won't start after deploy**
+- Check app logs: `uv run apx databricks_apps_logs --app-name tesla-lease-tracker`
+- Verify secrets are set: `databricks secrets list-secrets tesla-lease-tracker`
+- Verify Lakebase instance is running: `databricks database get-database-instance --name tesla-lease-tracker`
+
+**Forecast button shows "No endpoint configured"**
+- Verify Model Serving endpoint exists: `databricks serving-endpoints get tesla-lease-tracker-forecast-dev`
+- Verify env var is set in app config: `databricks apps get tesla-lease-tracker` (check environment block)
+- Rerun training: `databricks bundle run ml_training_pipeline`
+
+**"Sync Mileage" button is disabled**
+- Wait for Tesla Fleet API registration approval (1-24 hours from registration)
+- Check your email for confirmation
+- Verify VIN matches a vehicle in your Tesla account
 
 ## Project Structure
 
