@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveLease, getLeaseKey, getDashboardKey, type LeaseConfigOut } from "@/lib/api";
+import { useSaveLease, getLeaseKey, getDashboardKey, type LeaseConfigOut } from "@/lib/api";
 
 interface LeaseFormProps {
   existingLease?: LeaseConfigOut | null;
@@ -27,25 +27,19 @@ export function LeaseForm({ existingLease, onSuccess }: LeaseFormProps) {
     existingLease?.start_odometer?.toString() ?? ""
   );
 
-  const mutation = useMutation({
-    mutationFn: () =>
-      saveLease({
-        vin,
-        lease_start_date: leaseStartDate,
-        lease_end_date: leaseEndDate,
-        mileage_limit: Number(mileageLimit),
-        start_odometer: Number(startOdometer),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: getLeaseKey() });
-      queryClient.invalidateQueries({ queryKey: getDashboardKey() });
-      toast.success("Lease configuration saved");
-      onSuccess?.();
-    },
-    onError: (error) => {
-      toast.error(
-        `Failed to save: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
+  const mutation = useSaveLease({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getLeaseKey() });
+        queryClient.invalidateQueries({ queryKey: getDashboardKey() });
+        toast.success("Lease configuration saved");
+        onSuccess?.();
+      },
+      onError: (error) => {
+        toast.error(
+          `Failed to save: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
+      },
     },
   });
 
@@ -53,7 +47,13 @@ export function LeaseForm({ existingLease, onSuccess }: LeaseFormProps) {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        mutation.mutate();
+        mutation.mutate({
+          vin,
+          lease_start_date: leaseStartDate,
+          lease_end_date: leaseEndDate,
+          mileage_limit: Number(mileageLimit),
+          start_odometer: Number(startOdometer),
+        });
       }}
       className="space-y-4"
     >

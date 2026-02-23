@@ -27,6 +27,7 @@ from .models import (
     LeaseConfigOut,
     MileageReading,
     MileageReadingOut,
+    SeedResultOut,
     VersionOut,
 )
 from .tesla_service import TeslaService, TeslaServiceError
@@ -36,7 +37,7 @@ from sqlmodel import delete
 api = APIRouter(prefix=api_prefix)
 
 
-@api.get("/version", response_model=VersionOut, operation_id="version")
+@api.get("/version", response_model=VersionOut, operation_id="getVersion")
 async def version():
     return VersionOut.from_metadata()
 
@@ -69,7 +70,7 @@ async def health(
     )
 
 
-@api.get("/current-user", response_model=UserOut, operation_id="currentUser")
+@api.get("/current-user", response_model=UserOut, operation_id="getCurrentUser")
 def me(obo_ws: Annotated[WorkspaceClient, Depends(get_obo_ws)]):
     return obo_ws.current_user.me()
 
@@ -114,7 +115,7 @@ async def save_lease(
 # --- Mileage ---
 
 
-@api.get("/mileage", response_model=list[MileageReadingOut], operation_id="getMileage")
+@api.get("/mileage", response_model=list[MileageReadingOut], operation_id="listMileage")
 async def get_mileage(
     config: ConfigDep,
     store: DataStoreDep,
@@ -321,7 +322,7 @@ async def get_forecast(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@api.post("/seed-local-data", response_model=dict, operation_id="seedLocalData")
+@api.post("/seed-local-data", response_model=SeedResultOut, operation_id="seedLocalData")
 async def seed_local_data(
     config: ConfigDep,
     lease_repo: LeaseRepoDep,
@@ -396,9 +397,9 @@ async def seed_local_data(
     # Update last sync
     lease_repo.set_last_sync(readings_data[-1][0])
 
-    return {
-        "status": "success",
-        "lease_vin": lease_config.vin,
-        "readings_count": len(readings_data),
-        "odometer_range": f"{readings_data[0][1]:.1f} - {readings_data[-1][1]:.1f} miles",
-    }
+    return SeedResultOut(
+        status="success",
+        lease_vin=lease_config.vin,
+        readings_count=len(readings_data),
+        odometer_range=f"{readings_data[0][1]:.1f} - {readings_data[-1][1]:.1f} miles",
+    )
