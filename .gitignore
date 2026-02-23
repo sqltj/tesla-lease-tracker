@@ -42,3 +42,6 @@ node_modules/
 
 # UI dist folder
 src/tesla_lease_tracker/__dist__/
+# Tesla Fleet API keys (private key must never be committed)
+private-key.pem
+public-key.pem

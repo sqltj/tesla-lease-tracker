@@ -24,6 +24,36 @@ artifacts:
     build: uv run apx build
 
 resources:
+  experiments:
+    forecast_experiment:
+      name: "/Users/{{workspace.current_user.email}}/tesla-lease-tracker/forecast"
+
+  # ⚠️ BOOTSTRAP: Uncomment forecast_endpoint block only after first training run
+  # completes successfully and registers model version 1 with @champion alias.
+  # model_serving_endpoints:
+  #   forecast_endpoint:
+  #     name: "tesla-lease-tracker-forecast-${bundle.target}"
+  #     config:
+  #       served_entities:
+  #         - entity_name: "main.tesla_lease_tracker.forecast_model@champion"
+  #           workload_size: "Small"
+  #           scale_to_zero_enabled: true
+
+  pipelines:
+    ml_feature_pipeline:
+      name: "[${bundle.target}] Tesla Lease Tracker - ML Features"
+      catalog: main
+      schema: tesla_lease_tracker
+      serverless: true
+      libraries:
+        - file:
+            path: notebooks/ml/ml_feature_pipeline/bronze_mileage.py
+        - file:
+            path: notebooks/ml/ml_feature_pipeline/silver_forecast_features.py
+      configuration:
+        lease_start_odometer: "12.0"
+        lease_start_date: "2024-06-01"
+
   sql_warehouses:
     tesla_lease_tracker_warehouse:
       name: "tesla-lease-tracker-warehouse-${bundle.target}"
@@ -38,6 +68,39 @@ resources:
           value: "${var.environment}"
 
   jobs:
+    ml_training_pipeline:
+      name: "[${bundle.target}] Tesla Lease Tracker - ML Training Pipeline"
+      description: "Runs SDP feature pipeline then trains and registers forecast model"
+      schedule:
+        quartz_cron_expression: "0 0 3 * * ?"
+        timezone_id: "UTC"
+      tasks:
+        - task_key: run_feature_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.ml_feature_pipeline.id}
+            full_refresh: false
+
+        - task_key: train_and_register
+          depends_on:
+            - task_key: run_feature_pipeline
+          notebook_task:
+            notebook_path: /Users/{{workspace.current_user.email}}/tesla-lease-tracker/notebooks/ml/train_and_register
+          new_cluster:
+            spark_version: "16.1.x-scala2.12"
+            node_type_id: "i3.xlarge"
+            num_workers: 1
+          environment_key: ml_env
+
+      environments:
+        - environment_key: ml_env
+          spec:
+            client: "1"
+            dependencies:
+              - "mlflow>=3.6.0"
+              - "numpy>=2.0"
+              - "statsmodels>=0.14"
+              - "pandas"
+
     setup_infrastructure:
       name: "Tesla Lease Tracker - Setup Infrastructure"
       description: "One-time setup job for Lakebase and Delta tables (Phase 1)"
