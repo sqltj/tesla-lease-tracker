@@ -100,7 +100,7 @@ export const UserSchema = {
 export type UserSchema = (typeof UserSchema)[keyof typeof UserSchema];
 
 export interface ValidationError {
-  ctx?: Record<string, unknown>;
+  ctx?: SeedResultOut;
   input?: unknown;
   loc: (string | number)[];
   msg: string;
@@ -111,12 +111,19 @@ export interface VersionOut {
   version: string;
 }
 
-export interface CurrentUserParams {
+export interface GetCurrentUserParams {
   "X-Forwarded-Access-Token"?: string | null;
 }
 
 export interface GetForecastParams {
   model?: string;
+}
+
+export interface SeedResultOut {
+  status: string;
+  lease_vin: string;
+  readings_count: number;
+  odometer_range: string;
 }
 
 export interface SeedLocalDataParams {
@@ -137,7 +144,7 @@ export class ApiError extends Error {
   }
 }
 
-export const currentUser = async (params?: CurrentUserParams, options?: RequestInit): Promise<{ data: User }> => {
+export const getCurrentUser = async (params?: GetCurrentUserParams, options?: RequestInit): Promise<{ data: User }> => {
   const res = await fetch("/api/current-user", { ...options, method: "GET", headers: { ...(params?.["X-Forwarded-Access-Token"] != null && { "X-Forwarded-Access-Token": params["X-Forwarded-Access-Token"] }), ...options?.headers } });
   if (!res.ok) {
     const body = await res.text();
@@ -148,16 +155,16 @@ export const currentUser = async (params?: CurrentUserParams, options?: RequestI
   return { data: await res.json() };
 };
 
-export const currentUserKey = (params?: CurrentUserParams) => {
+export const getCurrentUserKey = (params?: GetCurrentUserParams) => {
   return ["/api/current-user", params] as const;
 };
 
-export function useCurrentUser<TData = { data: User }>(options?: { params?: CurrentUserParams; query?: Omit<UseQueryOptions<{ data: User }, ApiError, TData>, "queryKey" | "queryFn"> }) {
-  return useQuery({ queryKey: currentUserKey(options?.params), queryFn: () => currentUser(options?.params), ...options?.query });
+export function useGetCurrentUser<TData = { data: User }>(options?: { params?: GetCurrentUserParams; query?: Omit<UseQueryOptions<{ data: User }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useQuery({ queryKey: getCurrentUserKey(options?.params), queryFn: () => getCurrentUser(options?.params), ...options?.query });
 }
 
-export function useCurrentUserSuspense<TData = { data: User }>(options?: { params?: CurrentUserParams; query?: Omit<UseSuspenseQueryOptions<{ data: User }, ApiError, TData>, "queryKey" | "queryFn"> }) {
-  return useSuspenseQuery({ queryKey: currentUserKey(options?.params), queryFn: () => currentUser(options?.params), ...options?.query });
+export function useGetCurrentUserSuspense<TData = { data: User }>(options?: { params?: GetCurrentUserParams; query?: Omit<UseSuspenseQueryOptions<{ data: User }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useSuspenseQuery({ queryKey: getCurrentUserKey(options?.params), queryFn: () => getCurrentUser(options?.params), ...options?.query });
 }
 
 export const getDashboard = async (options?: RequestInit): Promise<{ data: DashboardOut | null }> => {
@@ -271,7 +278,7 @@ export function useSaveLease(options?: { mutation?: UseMutationOptions<{ data: L
   return useMutation({ mutationFn: (data) => saveLease(data), ...options?.mutation });
 }
 
-export const getMileage = async (options?: RequestInit): Promise<{ data: MileageReadingOut[] }> => {
+export const listMileage = async (options?: RequestInit): Promise<{ data: MileageReadingOut[] }> => {
   const res = await fetch("/api/mileage", { ...options, method: "GET" });
   if (!res.ok) {
     const body = await res.text();
@@ -282,16 +289,16 @@ export const getMileage = async (options?: RequestInit): Promise<{ data: Mileage
   return { data: await res.json() };
 };
 
-export const getMileageKey = () => {
+export const listMileageKey = () => {
   return ["/api/mileage"] as const;
 };
 
-export function useGetMileage<TData = { data: MileageReadingOut[] }>(options?: { query?: Omit<UseQueryOptions<{ data: MileageReadingOut[] }, ApiError, TData>, "queryKey" | "queryFn"> }) {
-  return useQuery({ queryKey: getMileageKey(), queryFn: () => getMileage(), ...options?.query });
+export function useListMileage<TData = { data: MileageReadingOut[] }>(options?: { query?: Omit<UseQueryOptions<{ data: MileageReadingOut[] }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useQuery({ queryKey: listMileageKey(), queryFn: () => listMileage(), ...options?.query });
 }
 
-export function useGetMileageSuspense<TData = { data: MileageReadingOut[] }>(options?: { query?: Omit<UseSuspenseQueryOptions<{ data: MileageReadingOut[] }, ApiError, TData>, "queryKey" | "queryFn"> }) {
-  return useSuspenseQuery({ queryKey: getMileageKey(), queryFn: () => getMileage(), ...options?.query });
+export function useListMileageSuspense<TData = { data: MileageReadingOut[] }>(options?: { query?: Omit<UseSuspenseQueryOptions<{ data: MileageReadingOut[] }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useSuspenseQuery({ queryKey: listMileageKey(), queryFn: () => listMileage(), ...options?.query });
 }
 
 export const syncMileage = async (options?: RequestInit): Promise<{ data: MileageReadingOut }> => {
@@ -309,7 +316,7 @@ export function useSyncMileage(options?: { mutation?: UseMutationOptions<{ data:
   return useMutation({ mutationFn: () => syncMileage(), ...options?.mutation });
 }
 
-export const seedLocalData = async (params?: SeedLocalDataParams, options?: RequestInit): Promise<{ data: Record<string, unknown> }> => {
+export const seedLocalData = async (params?: SeedLocalDataParams, options?: RequestInit): Promise<{ data: SeedResultOut }> => {
   const searchParams = new URLSearchParams();
   if (params?.force != null) searchParams.set("force", String(params?.force));
   const queryString = searchParams.toString();
@@ -324,11 +331,11 @@ export const seedLocalData = async (params?: SeedLocalDataParams, options?: Requ
   return { data: await res.json() };
 };
 
-export function useSeedLocalData(options?: { mutation?: UseMutationOptions<{ data: Record<string, unknown> }, ApiError, { params: SeedLocalDataParams }> }) {
+export function useSeedLocalData(options?: { mutation?: UseMutationOptions<{ data: SeedResultOut }, ApiError, { params: SeedLocalDataParams }> }) {
   return useMutation({ mutationFn: (vars) => seedLocalData(vars.params), ...options?.mutation });
 }
 
-export const version = async (options?: RequestInit): Promise<{ data: VersionOut }> => {
+export const getVersion = async (options?: RequestInit): Promise<{ data: VersionOut }> => {
   const res = await fetch("/api/version", { ...options, method: "GET" });
   if (!res.ok) {
     const body = await res.text();
@@ -339,15 +346,15 @@ export const version = async (options?: RequestInit): Promise<{ data: VersionOut
   return { data: await res.json() };
 };
 
-export const versionKey = () => {
+export const getVersionKey = () => {
   return ["/api/version"] as const;
 };
 
-export function useVersion<TData = { data: VersionOut }>(options?: { query?: Omit<UseQueryOptions<{ data: VersionOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
-  return useQuery({ queryKey: versionKey(), queryFn: () => version(), ...options?.query });
+export function useGetVersion<TData = { data: VersionOut }>(options?: { query?: Omit<UseQueryOptions<{ data: VersionOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useQuery({ queryKey: getVersionKey(), queryFn: () => getVersion(), ...options?.query });
 }
 
-export function useVersionSuspense<TData = { data: VersionOut }>(options?: { query?: Omit<UseSuspenseQueryOptions<{ data: VersionOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
-  return useSuspenseQuery({ queryKey: versionKey(), queryFn: () => version(), ...options?.query });
+export function useGetVersionSuspense<TData = { data: VersionOut }>(options?: { query?: Omit<UseSuspenseQueryOptions<{ data: VersionOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useSuspenseQuery({ queryKey: getVersionKey(), queryFn: () => getVersion(), ...options?.query });
 }
 

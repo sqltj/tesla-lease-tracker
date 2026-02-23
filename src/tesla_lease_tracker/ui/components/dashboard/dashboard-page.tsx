@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import {
   useGetLeaseSuspense,
   useGetDashboardSuspense,
-  useGetMileageSuspense,
-  useGetForecast,
+  useListMileageSuspense,
+  useGetForecastSuspense,
+  type MileageReadingOut,
 } from "@/lib/api";
+import { selector } from "@/lib/selector";
 import { LeaseDialog } from "@/components/lease/lease-dialog";
 import { ErrorFallback } from "./error-fallback";
 import { ForecastToggle } from "./forecast-toggle";
@@ -18,9 +20,7 @@ import { MileageChart } from "./mileage-chart";
 import { SyncButton } from "./sync-button";
 
 function DashboardContent() {
-  const { data: lease } = useGetLeaseSuspense({
-    query: { select: (d) => d.data },
-  });
+  const { data: lease } = useGetLeaseSuspense(selector());
 
   if (!lease) {
     return <GetStarted />;
@@ -29,29 +29,48 @@ function DashboardContent() {
   return <DashboardWithData />;
 }
 
+/** Fetches forecast via suspense — only rendered when readings >= 3 */
+function ForecastSection({
+  model,
+  readings,
+  mileageLimit,
+  leaseEndDate,
+}: {
+  model: string;
+  readings: MileageReadingOut[];
+  mileageLimit: number;
+  leaseEndDate: string;
+}) {
+  const { data: forecastData } = useGetForecastSuspense({
+    params: { model },
+    query: { select: (d) => d.data },
+  });
+
+  return (
+    <MileageChart
+      readings={readings}
+      forecast={forecastData}
+      mileageLimit={mileageLimit}
+      leaseEndDate={leaseEndDate}
+    />
+  );
+}
+
 function DashboardWithData() {
   const [forecastModel, setForecastModel] = useState("linear");
 
-  const { data: lease } = useGetLeaseSuspense({
-    query: { select: (d) => d.data },
-  });
-  const { data: dashboard } = useGetDashboardSuspense({
-    query: { select: (d) => d.data },
-  });
-  const { data: readings } = useGetMileageSuspense({
-    query: { select: (d) => d.data },
-  });
+  const { data: lease } = useGetLeaseSuspense(selector());
+  const { data: dashboard } = useGetDashboardSuspense(selector());
+  const { data: readings } = useListMileageSuspense(selector());
 
   const hasEnoughReadings = readings.length >= 3;
-  const { data: forecastData } = useGetForecast({
-    params: { model: forecastModel },
-    query: {
-      enabled: hasEnoughReadings,
-      select: (d) => d.data,
-    },
-  });
 
   if (!lease) return null;
+
+  const leaseEndDate =
+    typeof lease.lease_end_date === "string"
+      ? lease.lease_end_date
+      : new Date(lease.lease_end_date).toISOString().slice(0, 10);
 
   return (
     <div className="space-y-8">
@@ -85,16 +104,23 @@ function DashboardWithData() {
 
       {/* Chart + Sidebar grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 animate-fade-up delay-300">
-        <MileageChart
-          readings={readings}
-          forecast={forecastData ?? null}
-          mileageLimit={lease.mileage_limit}
-          leaseEndDate={
-            typeof lease.lease_end_date === "string"
-              ? lease.lease_end_date
-              : new Date(lease.lease_end_date).toISOString().slice(0, 10)
-          }
-        />
+        {hasEnoughReadings ? (
+          <Suspense fallback={<Skeleton className="h-80 rounded-xl" />}>
+            <ForecastSection
+              model={forecastModel}
+              readings={readings}
+              mileageLimit={lease.mileage_limit}
+              leaseEndDate={leaseEndDate}
+            />
+          </Suspense>
+        ) : (
+          <MileageChart
+            readings={readings}
+            forecast={null}
+            mileageLimit={lease.mileage_limit}
+            leaseEndDate={leaseEndDate}
+          />
+        )}
         <aside className="space-y-4">
           {dashboard && <MetricsCards dashboard={dashboard} />}
           {hasEnoughReadings && (

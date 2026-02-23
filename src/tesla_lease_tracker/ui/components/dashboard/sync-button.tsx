@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   useSyncMileage,
-  getMileageKey,
+  listMileageKey,
   getDashboardKey,
 } from "@/lib/api";
 
@@ -13,7 +13,7 @@ export function SyncButton() {
   const mutation = useSyncMileage({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getMileageKey() });
+        queryClient.invalidateQueries({ queryKey: listMileageKey() });
         queryClient.invalidateQueries({ queryKey: getDashboardKey() });
         toast.success("Mileage synced successfully");
       },

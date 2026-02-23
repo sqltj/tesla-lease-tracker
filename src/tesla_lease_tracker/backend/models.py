@@ -117,6 +117,16 @@ class HealthOut(BaseModel):
     last_sync: datetime | None = Field(default=None, description="Last mileage sync timestamp")
 
 
+# --- Seed Result ---
+
+
+class SeedResultOut(BaseModel):
+    status: str
+    lease_vin: str
+    readings_count: int
+    odometer_range: str
+
+
 # --- AppData (root persistence object) ---
 
 
