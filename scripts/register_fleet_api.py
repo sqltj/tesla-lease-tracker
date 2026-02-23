@@ -24,7 +24,6 @@ from pathlib import Path
 
 import requests
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.compute import GetConfigResponse
 
 
 def get_partner_token(client_id: str, client_secret: str, region: str) -> str:

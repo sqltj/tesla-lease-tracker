@@ -484,6 +484,135 @@ Set `TESLA_LEASE_TRACKER_STORAGE_MODE=json` to use flat-file persistence. All st
 
 Dashboard metrics (daily average, projected end miles, over/under budget) and forecasts (linear regression, Holt-Winters) are **computed on the fly** from the stored data — nothing else is persisted.
 
+## ML Pipeline & Forecast Model Serving
+
+The app includes a full **MLOps pipeline** for mileage forecasting, separate from the transactional data layer. This enables production-grade model training, versioning, and serving on Databricks.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ DATA INGESTION & STREAMING                                          │
+└─────────────────────────────────────────────────────────────────────┘
+
+    [Zerobus Ingest] — Real-time mileage readings
+            ↓
+    [Delta: main.default.mileage_readings]
+
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ FEATURE PIPELINE (Spark Declarative Pipelines — SDP)                │
+│ Runs daily via Databricks Workflow (Task 1)                         │
+└─────────────────────────────────────────────────────────────────────┘
+
+    [Bronze Streaming Table: bronze_mileage]
+        ↓ (passthrough from mileage_readings)
+    [Silver Streaming Table: silver_forecast_features]
+        • lease_miles = odometer - start_odometer
+        • days_since_start = datediff(reading_date, lease_start_date)
+
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ MODEL TRAINING & REGISTRATION                                        │
+│ Runs daily via Databricks Workflow (Task 2, depends on Task 1)      │
+└─────────────────────────────────────────────────────────────────────┘
+
+    [train_and_register Notebook]
+        1. Batch read silver_forecast_features → pandas DataFrame
+        2. Fit linear model:  slope = polyfit(days, miles, 1)
+        3. Fit Holt-Winters: level, trend, residual_std from fit
+        4. Save model state as JSON artifacts
+           • linear_coeffs.json:  {slope, intercept}
+           • hw_state.json:       {level, trend, residual_std}
+           • training_meta.json:  {base_date, last_reading_date, ...}
+        5. Log to MLflow + register to Unity Catalog
+           → main.tesla_lease_tracker.forecast_model (version X)
+        6. Set @champion alias to latest version
+        7. Update Model Serving endpoint config
+
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ MODEL SERVING & API ROUTING                                          │
+└─────────────────────────────────────────────────────────────────────┘
+
+    [Model Serving Endpoint]
+    (tesla-lease-tracker-forecast-{target})
+            ↓
+    [FastAPI /api/forecast]
+    ForecastService.forecast(readings, config, model_type)
+            ↓
+    Route logic:
+    • ON DATABRICKS:
+      - ForecastService initialized with endpoint name
+      - Routes query through Workspace SDK
+      - Returns prediction from registered model
+    • LOCAL DEV (env var absent):
+      - ForecastService = None
+      - Falls back to forecast_linear() / forecast_timeseries()
+      - No external dependency
+```
+
+### How It Works
+
+1. **Mileage readings** arrive via Tesla Fleet API (Zerobus streams to Delta table)
+2. **SDP feature pipeline** (serverless Spark) computes `lease_miles` and `days_since_start`
+3. **Daily workflow** (3am UTC):
+   - Task 1: SDP runs, updates silver streaming tables
+   - Task 2 (depends on Task 1): Training notebook reads silver features, fits models, registers to UC
+4. **Model Serving** endpoint is updated to point to the new `@champion` version
+5. **FastAPI routes** forecast requests:
+   - On Databricks: Call Model Serving endpoint via `ForecastService`
+   - Local dev: Call `forecast_linear()` / `forecast_timeseries()` directly (no env var set)
+
+### Model State Storage (JSON Format)
+
+Models store fitted coefficients/parameters as **JSON artifacts**, not serialized objects:
+
+- **Linear**: `slope`, `intercept` → predict via `y = slope*x + intercept`
+- **Holt-Winters**: `level`, `trend`, `residual_std` → extrapolate via `level + h*trend` with confidence intervals
+
+This approach is:
+- **Secure**: No deserialization of untrusted data
+- **Portable**: JSON is human-readable and platform-independent
+- **Explainable**: Coefficients can be inspected and understood
+
+### Configuration
+
+**Local development** — Forecast runs locally:
+```bash
+uv run apx dev start
+# ForecastService not initialized (TESLA_LEASE_TRACKER_FORECAST_ENDPOINT not set)
+# Dashboard uses forecast_linear() / forecast_timeseries()
+```
+
+**Databricks deployment** — Forecast routes through Model Serving:
+```yaml
+# databricks.yml
+env:
+  - name: TESLA_LEASE_TRACKER_FORECAST_ENDPOINT
+    value: "tesla-lease-tracker-forecast-dev"
+```
+
+Set the env var to enable the serving endpoint. The workflow handles training/registration automatically.
+
+### Bootstrap Sequence
+
+First deployment:
+```bash
+# 1. Initial deploy (no serving endpoint yet)
+databricks bundle deploy -t dev
+
+# 2. Run training manually to register model version 1
+databricks bundle run ml_training_pipeline
+
+# 3. Uncomment forecast_endpoint block in databricks.yml (after model exists)
+# 4. Redeploy to create endpoint
+databricks bundle deploy -t dev
+
+# 5. Set TESLA_LEASE_TRACKER_FORECAST_ENDPOINT env var in app config
+# Subsequent deploys will auto-train daily and update endpoint to @champion
+```
+
 ## Testing
 
 ```bash

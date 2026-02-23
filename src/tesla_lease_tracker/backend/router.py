@@ -9,6 +9,7 @@ from .._metadata import api_prefix
 from .dependencies import (
     ConfigDep,
     DataStoreDep,
+    ForecastServiceDep,
     LeaseRepoDep,
     MileageRepoDep,
     RuntimeDep,
@@ -286,6 +287,7 @@ async def get_forecast(
     store: DataStoreDep,
     lease_repo: LeaseRepoDep,
     mileage_repo: MileageRepoDep,
+    forecast_service: ForecastServiceDep,
     model: str = "linear",
 ):
     if config.storage_mode == "database":
@@ -309,7 +311,9 @@ async def get_forecast(
         )
 
     try:
-        if model == "prophet":
+        if forecast_service:
+            return forecast_service.forecast(readings, cfg, model_type=model)
+        elif model == "prophet":
             return forecast_timeseries(readings, cfg)
         else:
             return forecast_linear(readings, cfg)

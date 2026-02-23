@@ -9,6 +9,7 @@ from .config import AppConfig
 from .data_store import DataStore
 from .repositories import LeaseRepository, MileageRepository
 from .runtime import Runtime
+from .forecast_service import ForecastService
 from .zerobus_service import ZerobusService
 
 
@@ -81,6 +82,13 @@ def get_zerobus_service(request: Request) -> ZerobusService | None:
 
 
 ZerobusServiceDep = Annotated[ZerobusService | None, Depends(get_zerobus_service)]
+
+
+def get_forecast_service(request: Request) -> ForecastService | None:
+    return getattr(request.app.state, "forecast_service", None)
+
+
+ForecastServiceDep = Annotated[ForecastService | None, Depends(get_forecast_service)]
 
 
 def get_obo_ws(

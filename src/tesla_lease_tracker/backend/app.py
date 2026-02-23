@@ -51,6 +51,21 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Zerobus initialization failed (non-fatal): {e}")
             app.state.zerobus_service = None
+
+        if config.forecast_endpoint:
+            try:
+                from .forecast_service import ForecastService
+
+                app.state.forecast_service = ForecastService(
+                    endpoint_name=config.forecast_endpoint,
+                    ws=runtime.ws,
+                )
+                logger.info(f"ForecastService initialized: {config.forecast_endpoint}")
+            except Exception as e:
+                logger.warning(f"ForecastService init failed (non-fatal): {e}")
+                app.state.forecast_service = None
+        else:
+            app.state.forecast_service = None
     else:
         # JSON fallback mode
         Path(config.data_file_path).parent.mkdir(parents=True, exist_ok=True)

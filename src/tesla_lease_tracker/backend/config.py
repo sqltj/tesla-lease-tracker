@@ -52,6 +52,9 @@ class AppConfig(BaseSettings):
     zerobus_catalog: str = Field(default="main")
     zerobus_schema: str = Field(default="default")
 
+    # Model Serving (set TESLA_LEASE_TRACKER_FORECAST_ENDPOINT on Databricks)
+    forecast_endpoint: str | None = Field(default=None)
+
     @property
     def static_assets_path(self) -> Path:
         return Path(str(resources.files(app_slug))).joinpath("__dist__")
