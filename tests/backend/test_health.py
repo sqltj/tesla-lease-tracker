@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from tesla_lease_tracker.backend.models import HealthOut, LeaseConfig, MileageReading, AppData
+from tesla_lease_tracker.backend.models import HealthOut, LeaseConfig, MileageReading
 
 
 class TestHealthOut:

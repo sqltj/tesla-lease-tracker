@@ -1,8 +1,24 @@
 import json
+from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from .logger import logger
-from .models import AppData
+
+if TYPE_CHECKING:
+    from .models import LeaseConfig, MileageReading
+
+
+class AppData(BaseModel):
+    """Root persistence object for JSON storage mode."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    lease_config: "LeaseConfig | None" = None
+    readings: list["MileageReading"] = Field(default_factory=list)
+    last_sync: datetime | None = None
 
 
 class DataStore:
@@ -35,3 +51,12 @@ class DataStore:
     @property
     def data(self) -> AppData:
         return self._data
+
+
+# Rebuild AppData model after imports complete to resolve forward references
+def _rebuild_app_data():
+    from .models import LeaseConfig, MileageReading
+    AppData.model_rebuild()
+
+
+_rebuild_app_data()

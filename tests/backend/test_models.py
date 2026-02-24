@@ -3,8 +3,8 @@ from datetime import date, datetime
 import pytest
 from pydantic import ValidationError
 
+from tesla_lease_tracker.backend.data_store import AppData
 from tesla_lease_tracker.backend.models import (
-    AppData,
     LeaseConfig,
     LeaseConfigIn,
     MileageReading,

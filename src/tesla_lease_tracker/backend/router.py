@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from databricks.sdk import WorkspaceClient
@@ -100,7 +100,7 @@ async def save_lease(
 
     # JSON fallback
     assert store is not None
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     if store.data.lease_config:
         lease = store.data.lease_config.model_copy(
             update={**lease_in.model_dump(), "updated_at": now}
@@ -186,7 +186,7 @@ async def sync_mileage(
         logger.error(error_msg)
         raise HTTPException(status_code=502, detail=error_msg)
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     if config.storage_mode == "database":
         assert mileage_repo is not None
@@ -244,7 +244,7 @@ async def get_dashboard(
         last_sync = store.data.last_sync
 
     start_odo = cfg.start_odometer
-    today = datetime.utcnow().date()
+    today = datetime.now(UTC).date()
     lease_start = cfg.lease_start_date
     lease_end = cfg.lease_end_date
 
