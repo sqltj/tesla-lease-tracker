@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 import re
 
@@ -44,8 +44,8 @@ class LeaseConfigIn(BaseModel):
 class LeaseConfig(LeaseConfigIn):
     """Stored lease configuration."""
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class LeaseConfigOut(LeaseConfigIn):
@@ -125,12 +125,3 @@ class SeedResultOut(BaseModel):
     lease_vin: str
     readings_count: int
     odometer_range: str
-
-
-# --- AppData (root persistence object) ---
-
-
-class AppData(BaseModel):
-    lease_config: LeaseConfig | None = None
-    readings: list[MileageReading] = Field(default_factory=list)
-    last_sync: datetime | None = None
