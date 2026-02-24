@@ -28,7 +28,11 @@ interface ChartPoint {
   confidence?: [number, number];
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+const CustomTooltip: React.FC<{
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; dataKey: string; color: string }>;
+  label?: string;
+}> = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="glass rounded-lg px-3 py-2 glow-border text-xs">
@@ -39,14 +43,14 @@ function CustomTooltip({ active, payload, label }: any) {
           year: "numeric",
         })}
       </p>
-      {payload.map((entry: any) => (
+      {payload.map((entry) => (
         <p key={entry.dataKey} className="font-mono" style={{ color: entry.color }}>
           {entry.name}: {Number(entry.value).toLocaleString()} mi
         </p>
       ))}
     </div>
   );
-}
+};
 
 export function MileageChart({ readings, forecast, mileageLimit, leaseEndDate }: MileageChartProps) {
   const chartData: ChartPoint[] = [];
