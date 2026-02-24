@@ -22,6 +22,16 @@ async def lifespan(app: FastAPI):
     app.state.config = config
     app.state.runtime = runtime
 
+    # Initialize Tesla service (token cache is preserved across requests)
+    from .tesla_service import TeslaService
+
+    try:
+        app.state.tesla_service = TeslaService(runtime)
+        logger.info("TeslaService initialized")
+    except Exception as e:
+        logger.warning(f"TeslaService init failed (non-fatal): {e}")
+        app.state.tesla_service = None
+
     zerobus_service = None
 
     if config.storage_mode == "database":

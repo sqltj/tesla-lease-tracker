@@ -12,7 +12,7 @@ from .dependencies import (
     ForecastServiceDep,
     LeaseRepoDep,
     MileageRepoDep,
-    RuntimeDep,
+    TeslaServiceDep,
     ZerobusServiceDep,
     get_obo_ws,
 )
@@ -30,7 +30,7 @@ from .models import (
     SeedResultOut,
     VersionOut,
 )
-from .tesla_service import TeslaService, TeslaServiceError
+from .tesla_service import TeslaServiceError
 from .db_models import LeaseConfigDB, MileageReadingDB
 from sqlmodel import delete
 
@@ -159,10 +159,10 @@ async def get_mileage(
 async def sync_mileage(
     config: ConfigDep,
     store: DataStoreDep,
-    runtime: RuntimeDep,
     lease_repo: LeaseRepoDep,
     mileage_repo: MileageRepoDep,
     zerobus: ZerobusServiceDep,
+    tesla: TeslaServiceDep,
 ):
     if config.storage_mode == "database":
         assert lease_repo is not None
@@ -174,9 +174,11 @@ async def sync_mileage(
     if not lease:
         raise HTTPException(status_code=400, detail="No lease configured")
 
+    if not tesla:
+        raise HTTPException(status_code=503, detail="Tesla service not initialized")
+
     try:
-        service = TeslaService(runtime)
-        odometer = await service.fetch_odometer(lease.vin)
+        odometer = await tesla.fetch_odometer(lease.vin)
     except TeslaServiceError as e:
         error_msg = str(e)
         logger.error(f"Tesla sync error: {error_msg}")

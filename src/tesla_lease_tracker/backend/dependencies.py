@@ -11,6 +11,7 @@ from .repositories import LeaseRepository, MileageRepository
 from .runtime import Runtime
 from .forecast_service import ForecastService
 from .zerobus_service import ZerobusService
+from .tesla_service import TeslaService
 
 
 def get_config(request: Request) -> AppConfig:
@@ -89,6 +90,13 @@ def get_forecast_service(request: Request) -> ForecastService | None:
 
 
 ForecastServiceDep = Annotated[ForecastService | None, Depends(get_forecast_service)]
+
+
+def get_tesla_service(request: Request) -> TeslaService | None:
+    return getattr(request.app.state, "tesla_service", None)
+
+
+TeslaServiceDep = Annotated[TeslaService | None, Depends(get_tesla_service)]
 
 
 def get_obo_ws(
