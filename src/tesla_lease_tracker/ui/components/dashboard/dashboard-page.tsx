@@ -9,6 +9,7 @@ import {
   useListMileageSuspense,
   useGetForecastSuspense,
   type MileageReadingOut,
+  type LeaseConfigOut,
 } from "@/lib/api";
 import { selector } from "@/lib/selector";
 import { LeaseDialog } from "@/components/lease/lease-dialog";
@@ -26,7 +27,7 @@ function DashboardContent() {
     return <GetStarted />;
   }
 
-  return <DashboardWithData />;
+  return <DashboardWithData lease={lease} />;
 }
 
 /** Fetches forecast via suspense — only rendered when readings >= 3 */
@@ -56,16 +57,13 @@ function ForecastSection({
   );
 }
 
-function DashboardWithData() {
+function DashboardWithData({ lease }: { lease: LeaseConfigOut }) {
   const [forecastModel, setForecastModel] = useState("linear");
 
-  const { data: lease } = useGetLeaseSuspense(selector());
   const { data: dashboard } = useGetDashboardSuspense(selector());
   const { data: readings } = useListMileageSuspense(selector());
 
   const hasEnoughReadings = readings.length >= 3;
-
-  if (!lease) return null;
 
   const leaseEndDate =
     typeof lease.lease_end_date === "string"
