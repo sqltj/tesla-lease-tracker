@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
@@ -25,7 +25,7 @@ class LeaseRepository:
         )
 
     def save_lease_config(self, lease_in: LeaseConfigIn) -> LeaseConfig:
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         row = self.session.exec(select(LeaseConfigDB)).first()
         if row:
             row.vin = lease_in.vin
