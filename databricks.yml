@@ -19,11 +19,77 @@ variables:
     description: "Databricks workspace URL (e.g., https://dbc-abc123.cloud.databricks.com)"
     default: "REPLACE_WITH_YOUR_WORKSPACE_URL"
 
+  # ──────────────────────────────────────────────────────────────
+  # Unity Catalog Configuration (Declarative Infrastructure)
+  # ──────────────────────────────────────────────────────────────
+  primary_catalog:
+    description: "Primary Unity Catalog for Tesla Lease Tracker (unified across all environments)"
+    default: "main"
+
+  # Medallion Architecture Schemas (Bronze/Silver/Gold)
+  bronze_schema:
+    description: "Bronze layer: Raw data ingestion zone"
+    default: "bronze_tesla_lease_tracker"
+  silver_schema:
+    description: "Silver layer: Cleaned and validated data"
+    default: "silver_tesla_lease_tracker"
+  gold_schema:
+    description: "Gold layer: Business-ready aggregations and KPIs"
+    default: "gold_tesla_lease_tracker"
+
+  # Volume Paths (Free tier compatible)
+  ml_artifacts_volume:
+    description: "Volume path for ML model artifacts"
+    default: "/Volumes/${var.primary_catalog}/${var.bronze_schema}/artifacts"
+  metadata_volume:
+    description: "Volume path for ingestion metadata"
+    default: "/Volumes/${var.primary_catalog}/${var.bronze_schema}/metadata"
+
 artifacts:
   default:
     build: uv run apx build
 
 resources:
+  # ──────────────────────────────────────────────────────────────
+  # Unity Catalog Resources (Free Tier)
+  # ──────────────────────────────────────────────────────────────
+
+  catalogs:
+    primary_catalog:
+      name: ${var.primary_catalog}
+      comment: "Primary data catalog for Tesla Lease Tracker (free tier)"
+
+  schemas:
+    bronze_schema:
+      catalog_name: ${var.primary_catalog}
+      name: ${var.bronze_schema}
+      comment: "Bronze layer: Raw data ingestion (Zerobus, APIs)"
+
+    silver_schema:
+      catalog_name: ${var.primary_catalog}
+      name: ${var.silver_schema}
+      comment: "Silver layer: Cleaned and validated data"
+
+    gold_schema:
+      catalog_name: ${var.primary_catalog}
+      name: ${var.gold_schema}
+      comment: "Gold layer: Business-ready aggregations and KPIs"
+
+  volumes:
+    bronze_metadata:
+      catalog_name: ${var.primary_catalog}
+      schema_name: ${var.bronze_schema}
+      name: metadata
+      volume_type: "MANAGED"
+      comment: "Ingestion state and metadata for streaming sources"
+
+    ml_artifacts:
+      catalog_name: ${var.primary_catalog}
+      schema_name: ${var.bronze_schema}
+      name: artifacts
+      volume_type: "MANAGED"
+      comment: "ML model artifacts and checkpoints"
+
   experiments:
     forecast_experiment:
       name: "/Users/{{workspace.current_user.email}}/tesla-lease-tracker/forecast"
@@ -42,8 +108,8 @@ resources:
   pipelines:
     ml_feature_pipeline:
       name: "[${bundle.target}] Tesla Lease Tracker - ML Features"
-      catalog: main
-      schema: tesla_lease_tracker
+      catalog: ${var.primary_catalog}
+      schema: ${var.silver_schema}
       serverless: true
       libraries:
         - file:
@@ -61,11 +127,6 @@ resources:
       enable_serverless_compute: true
       auto_stop_mins: 10
       warehouse_type: "PRO"
-      tags:
-        - key: "project"
-          value: "tesla-lease-tracker"
-        - key: "environment"
-          value: "${var.environment}"
 
   jobs:
     ml_training_pipeline:
@@ -182,8 +243,8 @@ targets:
   dev:
     mode: development
     default: true
-    workspace:
-      host: ${var.workspace_host}
+    # Note: Set DATABRICKS_HOST environment variable for workspace URL
+    # export DATABRICKS_HOST=https://your-workspace.cloud.databricks.com
     variables:
       region: "us-west-2"
       environment: "dev"
@@ -191,8 +252,7 @@ targets:
 
   staging:
     mode: development
-    workspace:
-      host: ${var.workspace_host}
+    # Note: Set DATABRICKS_HOST environment variable for workspace URL
     variables:
       region: "us-west-2"
       environment: "staging"
@@ -200,8 +260,7 @@ targets:
 
   prod-na:
     mode: production
-    workspace:
-      host: ${var.workspace_host}
+    # Note: Set DATABRICKS_HOST environment variable for workspace URL
     variables:
       region: "us-west-2"
       environment: "prod-na"
@@ -209,8 +268,7 @@ targets:
 
   prod-eu:
     mode: production
-    workspace:
-      host: ${var.workspace_host}
+    # Note: Set DATABRICKS_HOST environment variable for workspace URL
     variables:
       region: "eu-west-1"
       environment: "prod-eu"
@@ -218,8 +276,7 @@ targets:
 
   prod-cn:
     mode: production
-    workspace:
-      host: ${var.workspace_host}
+    # Note: Set DATABRICKS_HOST environment variable for workspace URL
     variables:
       region: "cn-north-1"
       environment: "prod-cn"
