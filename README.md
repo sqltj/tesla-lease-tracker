@@ -324,34 +324,35 @@ databricks secrets put-secret tesla-lease-tracker tesla-refresh-token \
 
 Otherwise, you'll generate it after deployment via the UI.
 
-### Step 3: Create Infrastructure (Lakebase + Delta Table)
+### Step 3: Create Infrastructure (Declarative DAB Resources)
 
-The app needs two resources:
-1. **Lakebase** — Managed PostgreSQL for transactional lease data
-2. **Delta table** — For streaming mileage readings to analytics
+Infrastructure is now declaratively defined in `databricks.yml` and will be created automatically during deployment.
 
-Create the Lakebase instance:
-```bash
-databricks database create-database-instance \
-  --name tesla-lease-tracker \
-  --capacity SMALL
-```
+**Unity Catalog (Free Tier):**
 
-Wait for creation to complete (~5-10 minutes). Check status:
-```bash
-databricks database get-database-instance --name tesla-lease-tracker
-```
+**Catalogs:**
+- `main` — Primary catalog
 
-Create the Delta table for Zerobus streaming:
-```bash
-databricks sql execute "CREATE TABLE IF NOT EXISTS main.default.mileage_readings (
-  vin STRING NOT NULL,
-  timestamp TIMESTAMP NOT NULL,
-  odometer DOUBLE NOT NULL
-) USING DELTA;"
-```
+**Schemas:**
+- `bronze_tesla_lease_tracker` — Raw data ingestion
+- `silver_tesla_lease_tracker` — Cleaned and validated data
+- `gold_tesla_lease_tracker` — Business-ready aggregations and KPIs
 
-Or use the Databricks SQL editor to run this query manually.
+**Volumes:**
+- `/Volumes/main/bronze_tesla_lease_tracker/artifacts` — ML model artifacts
+- `/Volumes/main/bronze_tesla_lease_tracker/metadata` — Ingestion metadata
+
+**Tables** (created via SQL notebooks):
+- `bronze_tesla_lease_tracker.mileage_readings` — Raw readings from Zerobus
+- `silver_tesla_lease_tracker.mileage_readings_clean` — Validated readings
+- `silver_tesla_lease_tracker.forecast_features` — ML features
+- `gold_tesla_lease_tracker.daily_mileage_summary` — Daily rollups
+- `gold_tesla_lease_tracker.lease_health_metrics` — Lease health KPIs
+
+**Free Tier Notes:**
+- Single shared SQL warehouse for all jobs (cost-efficient)
+- Forecast API runs in backend (no Model Serving endpoint)
+- Lakebase PostgreSQL handled by APX framework
 
 ### Step 4: Build & Deploy App
 
