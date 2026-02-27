@@ -1,5 +1,7 @@
 # Tesla Lease Mileage Tracker
 
+![Tesla Lease Tracker Dashboard](./assets/tesla-tracker.jpeg)
+
 Track your Tesla's odometer against your lease mileage allowance. Syncs real readings from the Tesla Fleet API, charts historical usage, and forecasts whether you'll be over or under your limit at lease end.
 
 Built with [APX](https://github.com/databricks-solutions/apx) (FastAPI + React) and deployed as a Databricks App.
