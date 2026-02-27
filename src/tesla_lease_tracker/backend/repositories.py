@@ -1,8 +1,9 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from .db_models import AppStateDB, LeaseConfigDB, MileageReadingDB
+from .logger import logger
 from .models import LeaseConfig, LeaseConfigIn, MileageReading
 
 
@@ -92,3 +93,53 @@ class MileageRepository:
     def count(self) -> int:
         rows = self.session.exec(select(MileageReadingDB)).all()
         return len(rows)
+
+    def validate_reading(self, vin: str, timestamp: datetime, odometer: float) -> list[str]:
+        """Validate a reading against existing data. Returns list of error strings (empty = valid)."""
+        errors: list[str] = []
+
+        # Check odometer monotonicity: new reading should not be less than max for this VIN
+        max_odometer_result = self.session.exec(
+            select(func.max(MileageReadingDB.odometer)).where(MileageReadingDB.vin == vin)
+        ).one_or_none()
+        if max_odometer_result is not None and odometer < max_odometer_result:
+            errors.append(
+                f"Odometer monotonicity violation: new value {odometer} is less than "
+                f"current max {max_odometer_result} for VIN {vin}"
+            )
+
+        # Check for duplicates: reading within 5 minutes of existing timestamp for same VIN
+        window_start = timestamp - timedelta(minutes=5)
+        window_end = timestamp + timedelta(minutes=5)
+        duplicate_stmt = (
+            select(MileageReadingDB)
+            .where(MileageReadingDB.vin == vin)
+            .where(MileageReadingDB.timestamp >= window_start)
+            .where(MileageReadingDB.timestamp <= window_end)
+        )
+        duplicate = self.session.exec(duplicate_stmt).first()
+        if duplicate is not None:
+            errors.append(
+                f"Duplicate reading detected: existing reading at {duplicate.timestamp} "
+                f"is within 5 minutes of new timestamp {timestamp} for VIN {vin}"
+            )
+
+        return errors
+
+    def add_reading_validated(
+        self, vin: str, timestamp: datetime, odometer: float
+    ) -> tuple[MileageReadingDB, list[str]]:
+        """Validate and insert a reading. Always inserts (non-fatal pattern)."""
+        errors = self.validate_reading(vin, timestamp, odometer)
+
+        if errors:
+            for error in errors:
+                logger.warning("Data quality warning: %s", error)
+
+        # Always insert the reading regardless of validation errors
+        row = MileageReadingDB(vin=vin, timestamp=timestamp, odometer=odometer)
+        self.session.add(row)
+        self.session.commit()
+        self.session.refresh(row)
+
+        return (row, errors)

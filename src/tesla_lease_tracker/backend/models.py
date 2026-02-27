@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from enum import Enum
 
 import re
 
@@ -56,6 +57,12 @@ class LeaseConfigOut(LeaseConfigIn):
 # --- Mileage Reading ---
 
 
+class ReadingQualityStatus(str, Enum):
+    VALID = "valid"
+    WARN_MONOTONICITY = "warn_monotonicity"
+    WARN_DUPLICATE = "warn_duplicate"
+
+
 class MileageReading(BaseModel):
     timestamp: datetime
     odometer: float
@@ -109,12 +116,27 @@ class DashboardOut(BaseModel):
 # --- Health ---
 
 
+class ServiceStatus(str, Enum):
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    UNHEALTHY = "unhealthy"
+
+
+class DependencyHealth(BaseModel):
+    name: str
+    status: ServiceStatus
+    error: str | None = None
+
+
 class HealthOut(BaseModel):
-    status: str = Field(description="Service status: 'ok' or 'degraded'")
+    status: ServiceStatus = Field(description="Overall service status")
     version: str = Field(description="Application version")
     has_lease: bool = Field(description="Whether a lease is configured")
     readings_count: int = Field(description="Number of mileage readings stored")
     last_sync: datetime | None = Field(default=None, description="Last mileage sync timestamp")
+    storage_mode: str = Field(default="database", description="Current storage mode")
+    database: DependencyHealth | None = Field(default=None, description="Database health")
+    zerobus: DependencyHealth | None = Field(default=None, description="Zerobus stream health")
 
 
 # --- Seed Result ---
