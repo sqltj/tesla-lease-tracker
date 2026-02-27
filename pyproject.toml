@@ -43,6 +43,12 @@ root = "src/tesla_lease_tracker/ui"
 "@svgl" = "https://svgl.app/r/{name}.json"
 
 
+[tool.pytest.ini_options]
+addopts = "-m 'not requires_workspace'"
+markers = [
+    "requires_workspace: test requires a live Databricks workspace connection",
+]
+
 [build-system]
 requires = ["hatchling", "uv-dynamic-versioning>=0.7.0"]
 build-backend = "hatchling.build"

@@ -17,6 +17,7 @@ from .dependencies import (
     get_obo_ws,
 )
 from .forecast import forecast_linear, forecast_timeseries
+from .health_service import check_database, check_zerobus, compute_overall_status
 from .logger import logger
 from .models import (
     DashboardOut,
@@ -48,6 +49,7 @@ async def health(
     store: DataStoreDep,
     lease_repo: LeaseRepoDep,
     mileage_repo: MileageRepoDep,
+    zerobus: ZerobusServiceDep,
 ):
     if config.storage_mode == "database":
         assert lease_repo is not None
@@ -55,18 +57,26 @@ async def health(
         lease = lease_repo.get_lease_config()
         count = mileage_repo.count()
         last_sync = lease_repo.get_last_sync()
+        db_health = check_database(lease_repo.session)
     else:
         assert store is not None
         lease = store.data.lease_config
         count = len(store.data.readings)
         last_sync = store.data.last_sync
+        db_health = check_database(None)
+
+    zerobus_health = check_zerobus(zerobus)
+    overall = compute_overall_status(db_health, zerobus_health)
 
     return HealthOut(
-        status="ok",
+        status=overall,
         version=VersionOut.from_metadata().version,
         has_lease=lease is not None,
         readings_count=count,
         last_sync=last_sync,
+        storage_mode=config.storage_mode,
+        database=db_health,
+        zerobus=zerobus_health,
     )
 
 
