@@ -19,6 +19,7 @@ import { HeroGauge } from "./hero-gauge";
 import { MetricsCards } from "./metrics-cards";
 import { MileageChart } from "./mileage-chart";
 import { SyncButton } from "./sync-button";
+import { MetricsCard } from "@/components/metrics/MetricsCard";
 
 function DashboardContent() {
   const { data: lease } = useGetLeaseSuspense(selector());
@@ -124,6 +125,7 @@ function DashboardWithData({ lease }: { lease: LeaseConfigOut }) {
           {hasEnoughReadings && (
             <ForecastToggle value={forecastModel} onChange={setForecastModel} />
           )}
+          <MetricsCard />
         </aside>
       </div>
     </div>

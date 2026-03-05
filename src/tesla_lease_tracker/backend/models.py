@@ -139,6 +139,31 @@ class HealthOut(BaseModel):
     zerobus: DependencyHealth | None = Field(default=None, description="Zerobus stream health")
 
 
+# --- Metrics ---
+
+
+class EndpointStats(BaseModel):
+    path: str
+    request_count: int
+    error_count: int
+    error_rate: float
+    latency_p50: float
+    latency_p95: float
+    latency_p99: float
+
+
+class MetricsOut(BaseModel):
+    window_size: int
+    request_count: int
+    error_count: int
+    error_rate: float
+    latency_p50: float
+    latency_p95: float
+    latency_p99: float
+    data_quality_warnings: int
+    by_endpoint: list[EndpointStats]
+
+
 # --- Seed Result ---
 
 

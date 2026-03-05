@@ -3,7 +3,7 @@ from typing import Annotated
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.iam import User as UserOut
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .._metadata import api_prefix
 from .dependencies import (
@@ -26,6 +26,7 @@ from .models import (
     LeaseConfig,
     LeaseConfigIn,
     LeaseConfigOut,
+    MetricsOut,
     MileageReading,
     MileageReadingOut,
     SeedResultOut,
@@ -78,6 +79,11 @@ async def health(
         database=db_health,
         zerobus=zerobus_health,
     )
+
+
+@api.get("/metrics", response_model=MetricsOut, operation_id="getMetrics")
+async def get_metrics(request: Request) -> MetricsOut:
+    return request.app.state.metrics.summary()
 
 
 @api.get("/current-user", response_model=UserOut, operation_id="getCurrentUser")

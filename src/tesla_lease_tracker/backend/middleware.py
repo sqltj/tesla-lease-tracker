@@ -35,6 +35,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 duration_ms,
             )
             response.headers["X-Correlation-ID"] = cid
+            if hasattr(request.app.state, "metrics"):
+                request.app.state.metrics.record(method, path, response.status_code, duration_ms)
             return response
         except Exception:
             duration_ms = round((time.perf_counter() - start) * 1000, 1)
