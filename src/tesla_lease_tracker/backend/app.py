@@ -22,6 +22,10 @@ async def lifespan(app: FastAPI):
     app.state.config = config
     app.state.runtime = runtime
 
+    from .metrics_service import MetricsCollector
+    app.state.metrics = MetricsCollector()
+    logger.info("MetricsCollector initialized")
+
     # Initialize Tesla service (token cache is preserved across requests)
     from .tesla_service import TeslaService
 

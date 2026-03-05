@@ -4,6 +4,7 @@ from sqlmodel import Session, func, select
 
 from .db_models import AppStateDB, LeaseConfigDB, MileageReadingDB
 from .logger import logger
+from .metrics_service import increment_quality_warnings
 from .models import LeaseConfig, LeaseConfigIn, MileageReading
 
 
@@ -135,6 +136,7 @@ class MileageRepository:
         if errors:
             for error in errors:
                 logger.warning("Data quality warning: %s", error)
+            increment_quality_warnings()
 
         # Always insert the reading regardless of validation errors
         row = MileageReadingDB(vin=vin, timestamp=timestamp, odometer=odometer)

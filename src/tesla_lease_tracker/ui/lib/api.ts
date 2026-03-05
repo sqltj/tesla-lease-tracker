@@ -111,6 +111,28 @@ export interface VersionOut {
   version: string;
 }
 
+export interface EndpointStats {
+  path: string;
+  request_count: number;
+  error_count: number;
+  error_rate: number;
+  latency_p50: number;
+  latency_p95: number;
+  latency_p99: number;
+}
+
+export interface MetricsOut {
+  window_size: number;
+  request_count: number;
+  error_count: number;
+  error_rate: number;
+  latency_p50: number;
+  latency_p95: number;
+  latency_p99: number;
+  data_quality_warnings: number;
+  by_endpoint: EndpointStats[];
+}
+
 export interface GetCurrentUserParams {
   "X-Forwarded-Access-Token"?: string | null;
 }
@@ -333,6 +355,29 @@ export const seedLocalData = async (params?: SeedLocalDataParams, options?: Requ
 
 export function useSeedLocalData(options?: { mutation?: UseMutationOptions<{ data: SeedResultOut }, ApiError, { params: SeedLocalDataParams }> }) {
   return useMutation({ mutationFn: (vars) => seedLocalData(vars.params), ...options?.mutation });
+}
+
+export const getMetrics = async (options?: RequestInit): Promise<{ data: MetricsOut }> => {
+  const res = await fetch("/api/metrics", { ...options, method: "GET" });
+  if (!res.ok) {
+    const body = await res.text();
+    let parsed: unknown;
+    try { parsed = JSON.parse(body); } catch { parsed = body; }
+    throw new ApiError(res.status, res.statusText, parsed);
+  }
+  return { data: await res.json() };
+};
+
+export const getMetricsKey = () => {
+  return ["/api/metrics"] as const;
+};
+
+export function useGetMetrics<TData = { data: MetricsOut }>(options?: { query?: Omit<UseQueryOptions<{ data: MetricsOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useQuery({ queryKey: getMetricsKey(), queryFn: () => getMetrics(), ...options?.query });
+}
+
+export function useGetMetricsSuspense<TData = { data: MetricsOut }>(options?: { query?: Omit<UseSuspenseQueryOptions<{ data: MetricsOut }, ApiError, TData>, "queryKey" | "queryFn"> }) {
+  return useSuspenseQuery({ queryKey: getMetricsKey(), queryFn: () => getMetrics(), ...options?.query });
 }
 
 export const getVersion = async (options?: RequestInit): Promise<{ data: VersionOut }> => {
